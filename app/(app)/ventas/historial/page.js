@@ -123,7 +123,7 @@ export default async function Historial({ searchParams }) {
             <tr key={v.id} className={elegida?.id === v.id ? 'bg-acento/10' : 'hover:bg-papel'}>
               <td className="hidden whitespace-nowrap text-tenue sm:table-cell">{fecha(v.fecha)}</td>
               <td>
-                <Enlace href={enlace({ v: v.id })} className="group block py-0.5">
+                <Enlace href={enlace({ v: v.id })} className="group flex min-h-11 flex-col justify-center">
                   <span className="font-medium group-hover:underline">{v.cliente?.nombre ?? 'Sin cliente'}</span>
                   <span className="block max-w-[10.5rem] truncate text-xs text-tenue sm:max-w-xs">
                     <span className="sm:hidden">{fecha(v.fecha)} · </span>

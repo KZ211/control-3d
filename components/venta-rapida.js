@@ -67,6 +67,7 @@ export default function VentaRapida({
   alListo,
   alCambiarSucio,
   borrador = false,
+  delDia,
 }) {
   const siguiente = useRef(1);
   // `auto`: el precio sigue al sugerido hasta que lo escribís a mano.
@@ -113,6 +114,7 @@ export default function VentaRapida({
   const [guardada, setGuardada] = useState(null);
   const [retomada, setRetomada] = useState(false);
   const [verCuenta, setVerCuenta] = useState(false);
+  const [mac, setMac] = useState(false);
   const uid = useId();
   const cuerpo = useRef(null);
   const restaurado = useRef(false);
@@ -178,6 +180,7 @@ export default function VentaRapida({
       if (!edicion && MEDIOS.includes(m)) setMedio(m);
     } catch {}
     if (borrador) restaurar();
+    setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
   }, []);
   // Si seguís la misma venta en otra pestaña del navegador, esta se pone al día
   // en vez de pisarla con lo que tenía.
@@ -274,7 +277,8 @@ export default function VentaRapida({
   };
 
   const filtro = buscar.trim().toLowerCase();
-  const encontrados = (filtro ? productos.filter((p) => p.nombre.toLowerCase().includes(filtro)) : productos).slice(0, 8);
+  const coinciden = filtro ? productos.filter((p) => p.nombre.toLowerCase().includes(filtro)) : productos;
+  const encontrados = coinciden.slice(0, 8);
   const { exacto, sugeridos } = buscarClientes(cliente, clientes);
   const escrito = cliente.trim();
   // Con un nombre parecido a otro cliente hay que elegir: es ese, o es uno nuevo.
@@ -321,7 +325,7 @@ export default function VentaRapida({
     total > 0 && costo > 0
       ? pierde
         ? `perdés ${plata(-ganancia)}`
-        : `${estado === 'encargo' ? 'cuando lo cobres te queda' : debe > 0 ? 'cuando la cobres te queda' : 'te queda'} ${plata(ganancia)}`
+        : `${estado === 'encargo' || debe > 0 ? 'al cobrar te queda' : 'te queda'} ${plata(ganancia)}`
       : null;
 
   const clienteYFecha = (
@@ -443,14 +447,16 @@ export default function VentaRapida({
             de las piezas, que es lo que se decide enseguida. */}
         <section aria-labelledby={`${uid}-piezas`} className="contents lg:-mr-2 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:overflow-y-auto lg:pr-2">
           <div className="flex shrink-0 flex-col gap-3">
-            <h2 id={`${uid}-piezas`} className="rotulo">
-              Qué vendiste
-            </h2>
-            {guardada && (
-              <p role="status" className="flex items-center gap-2 rounded-box bg-gana/10 px-3 py-2 text-sm font-medium text-gana">
-                <Icono nombre="listo" /> Guardada: {guardada}. Cargá la siguiente.
-              </p>
-            )}
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 id={`${uid}-piezas`} className="rotulo">
+                Qué vendiste
+              </h2>
+              {!edicion && delDia?.cantidad > 0 && (
+                <p className="text-xs text-tenue">
+                  Hoy: {delDia.cantidad} {delDia.cantidad === 1 ? 'venta' : 'ventas'} · <strong className="text-tinta">{plata(delDia.total)}</strong>
+                </p>
+              )}
+            </div>
             {retomada && !guardada && (
               <p role="status" className="flex flex-wrap items-center justify-between gap-x-3 rounded-box bg-papel px-3 py-1 text-sm">
                 <span>Seguís con la venta que dejaste a medias.</span>
@@ -568,8 +574,9 @@ export default function VentaRapida({
                     {sug > 0 && (
                       <div className="mt-2 text-xs">
                         {/* La cuenta de la planilla, con los números de esta pieza. */}
-                        <details className="text-tenue">
-                          <summary className="cursor-pointer select-none py-1 underline-offset-2 hover:underline">
+                        <details className="group text-tenue">
+                          <summary className="flex min-h-11 cursor-pointer select-none list-none items-center gap-1 underline-offset-2 hover:underline [&::-webkit-details-marker]:hidden">
+                            <Icono nombre="siguiente" className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
                             Filamento {plata(aNumero(l.gramos) * costoGramo)} c/u · ¿de dónde salen estos precios?
                           </summary>
                           <p className="mt-1 max-w-prose leading-relaxed">
@@ -664,6 +671,9 @@ export default function VentaRapida({
                       </li>
                     ))}
                   </ul>
+                )}
+                {coinciden.length > encontrados.length && (
+                  <p className="mt-2 text-xs text-tenue">Y {coinciden.length - encontrados.length} más: escribí parte del nombre para encontrarlo.</p>
                 )}
               </div>
             )}
@@ -790,6 +800,11 @@ export default function VentaRapida({
       </div>
 
       <footer className="order-last shrink-0 border-t border-linea bg-hoja px-4 py-2 sm:py-3">
+        {guardada && (
+          <p role="status" className="mb-2 flex items-center gap-2 rounded-btn bg-gana/10 px-3 py-2 text-sm font-medium text-gana">
+            <Icono nombre="listo" className="h-4 w-4" /> Guardada: {guardada}. Cargá la siguiente.
+          </p>
+        )}
         {sinPrecio && (
           <p role="status" className="mb-2 rounded-btn bg-papel px-3 py-2 text-sm">
             Sin precio se guarda como <strong>regalo</strong>: no suma a lo vendido ni a lo cobrado, y el filamento cuenta como gasto. Si te pagaron, poné el precio; si
@@ -824,7 +839,7 @@ export default function VentaRapida({
           </p>
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-tenue lg:inline">
-              <kbd className="kbd kbd-xs">Ctrl</kbd> o <kbd className="kbd kbd-xs">⌘</kbd> + <kbd className="kbd kbd-xs">Enter</kbd>
+              <kbd className="kbd kbd-xs">{mac ? '⌘' : 'Ctrl'}</kbd> + <kbd className="kbd kbd-xs">Enter</kbd>
             </span>
             {/* Un regalo se guarda con otro botón (tinta y moño), para que no se confunda con una venta normal. */}
             <Enviar className={`btn shrink-0 sm:btn-lg sm:min-w-40 ${sinPrecio ? 'btn-neutral' : 'btn-primary'}`} deshabilitado={!puedeGuardar}>
