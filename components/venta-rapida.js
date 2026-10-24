@@ -341,13 +341,13 @@ export default function VentaRapida({
         </p>
         <div id={`${uid}-cliente-estado`} className="mt-2">
           {!escrito ? (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="sin-barra -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
               {clientes.slice(0, RECIENTES).map((c) => (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => setCliente(c.nombre)}
-                  className="btn btn-ghost btn-sm min-h-11 rounded-full border border-linea bg-hoja font-normal"
+                  className="btn btn-ghost btn-sm min-h-11 shrink-0 rounded-full border border-linea bg-hoja font-normal"
                 >
                   {c.nombre}
                 </button>
@@ -413,365 +413,364 @@ export default function VentaRapida({
       className="flex h-full min-h-0 flex-col"
       claseError="shrink-0 border-t border-pierde/30 bg-pierde/10 px-4 py-2"
     >
-      <div ref={cuerpo} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden">
-        {/* Qué vendiste, a quién y cuándo */}
-        <section aria-labelledby={`${uid}-piezas`} className="flex shrink-0 flex-col gap-3 lg:-mr-2 lg:min-h-0 lg:shrink lg:overflow-y-auto lg:pr-2">
-          <h2 id={`${uid}-piezas`} className="rotulo">
-            Qué vendiste
-          </h2>
-          {guardada && (
-            <p role="status" className="flex items-center gap-2 rounded-box bg-gana/10 px-3 py-2 text-sm font-medium text-gana">
-              <Icono nombre="listo" /> Guardada: {guardada}. Cargá la siguiente.
-            </p>
-          )}
-          {retomada && !guardada && (
-            <p role="status" className="flex flex-wrap items-center justify-between gap-x-3 rounded-box bg-papel px-3 py-1 text-sm">
-              <span>Seguís con la venta que dejaste a medias.</span>
-              <button type="button" onClick={empezarDeCero} className="btn btn-ghost btn-sm min-h-11 px-2 font-medium underline underline-offset-2">
-                Empezar de cero
-              </button>
-            </p>
-          )}
+      <div ref={cuerpo} data-venta-form className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden">
+        {/* Qué vendiste, a quién y cuándo. En el celular las dos secciones se
+            desarman (contents) para que "¿Ya la entregaste?" quede justo debajo
+            de las piezas, que es lo que se decide enseguida. */}
+        <section aria-labelledby={`${uid}-piezas`} className="contents lg:-mr-2 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:overflow-y-auto lg:pr-2">
+          <div className="flex shrink-0 flex-col gap-3">
+            <h2 id={`${uid}-piezas`} className="rotulo">
+              Qué vendiste
+            </h2>
+            {guardada && (
+              <p role="status" className="flex items-center gap-2 rounded-box bg-gana/10 px-3 py-2 text-sm font-medium text-gana">
+                <Icono nombre="listo" /> Guardada: {guardada}. Cargá la siguiente.
+              </p>
+            )}
+            {retomada && !guardada && (
+              <p role="status" className="flex flex-wrap items-center justify-between gap-x-3 rounded-box bg-papel px-3 py-1 text-sm">
+                <span>Seguís con la venta que dejaste a medias.</span>
+                <button type="button" onClick={empezarDeCero} className="btn btn-ghost btn-sm min-h-11 px-2 font-medium underline underline-offset-2">
+                  Empezar de cero
+                </button>
+              </p>
+            )}
 
-          <ul className="space-y-2">
-            {lineas.map((l, i) => {
-              const sug = aNumero(l.gramos) > 0 ? redondear(sugerido(l.gramos, multiplicador)) : 0;
-              const mayor = aNumero(l.gramos) > 0 ? redondear(sugerido(l.gramos, multiplicadorMayor)) : 0;
-              const precio = aNumero(l.unitario);
-              const obligatoria = i === 0 || !vacia(l);
-              return (
-                <li key={l.k} className="rounded-box border border-linea bg-papel/60 p-3">
-                  <input type="hidden" name="item_id" value={l.id ?? ''} />
-                  <input type="hidden" name="item_producto" value={l.producto} />
-                  <input type="hidden" name="item_cantidad" value={cantidadDe(l)} />
-                  <input type="hidden" name="item_precio" value={calculo[i].total} />
-                  <div className="flex items-center gap-2">
-                    <input
-                      name="item_descripcion"
-                      aria-label={`Qué es la pieza ${i + 1}`}
-                      value={l.descripcion}
-                      onChange={(e) =>
-                        cambiar(l.k, {
-                          descripcion: e.target.value,
-                          producto: '',
-                        })
-                      }
-                      placeholder="Qué es (ej: Stitch articulado)"
-                      required={obligatoria}
-                      autoComplete="off"
-                      className="entrada flex-1 bg-hoja font-medium"
-                    />
-                    {(lineas.length > 1 || !vacia(l)) && (
-                      <button
-                        type="button"
-                        onClick={() => quitar(l.k)}
-                        aria-label={`Quitar ${l.descripcion || 'la pieza'}`}
-                        className="btn btn-ghost btn-square min-h-11"
-                      >
-                        <Icono nombre="cerrar" className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-end gap-2">
-                    <div role="group" aria-labelledby={`${uid}-cant-${l.k}`}>
-                      <span id={`${uid}-cant-${l.k}`} className="mb-1 block text-xs text-tenue">
-                        Cantidad
-                      </span>
-                      <div className="join">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            cambiar(l.k, {
-                              cantidad: Math.max(1, cantidadDe(l) - 1),
-                            })
-                          }
-                          disabled={cantidadDe(l) <= 1}
-                          aria-label="Una menos"
-                          className="btn join-item h-11 min-h-11 w-11 border-linea bg-hoja px-0 disabled:border-linea disabled:bg-hoja disabled:text-tenue/40"
-                        >
-                          <Icono nombre="restar" className="h-4 w-4" />
-                        </button>
-                        <input
-                          inputMode="numeric"
-                          aria-label={`Cantidad de ${l.descripcion || 'la pieza'}`}
-                          value={l.cantidad}
-                          onChange={(e) =>
-                            cambiar(l.k, {
-                              cantidad: e.target.value.replace(/\D/g, '').slice(0, 4),
-                            })
-                          }
-                          onBlur={() => cambiar(l.k, { cantidad: cantidadDe(l) })}
-                          onFocus={(e) => e.target.select()}
-                          className="join-item h-11 w-12 border-y border-linea bg-hoja text-center text-sm font-semibold outline-none focus:border-primary"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => cambiar(l.k, { cantidad: cantidadDe(l) + 1 })}
-                          aria-label="Una más"
-                          className="btn join-item h-11 min-h-11 w-11 border-linea bg-hoja px-0"
-                        >
-                          <Icono nombre="sumar" className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <label className="w-20">
-                      <span className="mb-1 block text-xs text-tenue">Gramos c/u</span>
+            <ul className="space-y-2">
+              {lineas.map((l, i) => {
+                const sug = aNumero(l.gramos) > 0 ? redondear(sugerido(l.gramos, multiplicador)) : 0;
+                const mayor = aNumero(l.gramos) > 0 ? redondear(sugerido(l.gramos, multiplicadorMayor)) : 0;
+                const precio = aNumero(l.unitario);
+                const obligatoria = i === 0 || !vacia(l);
+                return (
+                  <li key={l.k} className="rounded-box border border-linea bg-papel/60 p-3">
+                    <input type="hidden" name="item_id" value={l.id ?? ''} />
+                    <input type="hidden" name="item_producto" value={l.producto} />
+                    <input type="hidden" name="item_cantidad" value={cantidadDe(l)} />
+                    <input type="hidden" name="item_precio" value={calculo[i].total} />
+                    <div className="flex items-center gap-2">
                       <input
-                        name="item_gramos"
-                        inputMode="decimal"
-                        value={l.gramos}
-                        onChange={(e) => cambiarGramos(l, e.target.value)}
-                        placeholder="0"
-                        className="entrada bg-hoja"
+                        name="item_descripcion"
+                        aria-label={`Qué es la pieza ${i + 1}`}
+                        value={l.descripcion}
+                        onChange={(e) =>
+                          cambiar(l.k, {
+                            descripcion: e.target.value,
+                            producto: '',
+                          })
+                        }
+                        placeholder="Qué es (ej: Stitch articulado)"
+                        required={obligatoria}
+                        autoComplete="off"
+                        className="entrada flex-1 bg-hoja font-medium"
                       />
-                    </label>
-                    <label className="w-28">
-                      <span className="mb-1 block text-xs text-tenue">Precio c/u</span>
-                      <span className="relative block">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-tenue" aria-hidden="true">
-                          $
-                        </span>
-                        <input
-                          inputMode="decimal"
-                          value={l.unitario}
-                          onChange={(e) =>
-                            cambiar(l.k, {
-                              unitario: e.target.value,
-                              auto: false,
-                            })
-                          }
-                          onBlur={() => precio > 0 && cambiar(l.k, { unitario: conPuntos(precio) })}
-                          placeholder="0"
-                          className="entrada bg-hoja pl-7"
-                        />
-                      </span>
-                    </label>
-                    <p className="ml-auto pb-2.5 text-right">
-                      <span className="block text-xs text-tenue">Total</span>
-                      {l.descripcion.trim() && !calculo[i].total ? (
-                        <span className="text-sm font-semibold text-warning">Sin precio</span>
-                      ) : (
-                        <span className="font-semibold">{plata(calculo[i].total)}</span>
+                      {(lineas.length > 1 || !vacia(l)) && (
+                        <button
+                          type="button"
+                          onClick={() => quitar(l.k)}
+                          aria-label={`Quitar ${l.descripcion || 'la pieza'}`}
+                          className="btn btn-ghost btn-square min-h-11"
+                        >
+                          <Icono nombre="cerrar" className="h-4 w-4" />
+                        </button>
                       )}
-                    </p>
-                  </div>
-                  {sug > 0 && (
-                    <div className="mt-2 text-xs">
-                      <p className="text-tenue">Filamento {plata(aNumero(l.gramos) * costoGramo)} c/u · tocá un precio para usarlo</p>
-                      <div className="mt-1 flex gap-1.5">
-                        {[
-                          ['Sugerido', sug, multiplicador],
-                          ['Por mayor', mayor, multiplicadorMayor],
-                        ].map(([n, v, x]) => (
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-end gap-2">
+                      <div role="group" aria-labelledby={`${uid}-cant-${l.k}`}>
+                        <span id={`${uid}-cant-${l.k}`} className="mb-1 block text-xs text-tenue">
+                          Cantidad
+                        </span>
+                        <div className="join">
                           <button
-                            key={n}
                             type="button"
-                            aria-pressed={precio === v}
                             onClick={() =>
                               cambiar(l.k, {
-                                unitario: conPuntos(v),
-                                auto: n === 'Sugerido',
+                                cantidad: Math.max(1, cantidadDe(l) - 1),
                               })
                             }
-                            className={`btn btn-ghost btn-sm min-h-11 min-w-0 flex-1 flex-nowrap gap-1 whitespace-nowrap rounded-full border px-2.5 text-xs sm:flex-none sm:px-3 sm:text-sm ${marcado(precio === v)}`}
+                            disabled={cantidadDe(l) <= 1}
+                            aria-label="Una menos"
+                            className="btn join-item h-11 min-h-11 w-11 border-linea bg-hoja px-0 disabled:border-linea disabled:bg-hoja disabled:text-tenue/40"
                           >
-                            {n} {plata(v)}
-                            <span className="text-tenue">×{num(x)}</span>
+                            <Icono nombre="restar" className="h-4 w-4" />
                           </button>
-                        ))}
+                          <input
+                            inputMode="numeric"
+                            aria-label={`Cantidad de ${l.descripcion || 'la pieza'}`}
+                            value={l.cantidad}
+                            onChange={(e) =>
+                              cambiar(l.k, {
+                                cantidad: e.target.value.replace(/\D/g, '').slice(0, 4),
+                              })
+                            }
+                            onBlur={() => cambiar(l.k, { cantidad: cantidadDe(l) })}
+                            onFocus={(e) => e.target.select()}
+                            className="join-item h-11 w-12 border-y border-linea bg-hoja text-center text-sm font-semibold outline-none focus:border-primary"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => cambiar(l.k, { cantidad: cantidadDe(l) + 1 })}
+                            aria-label="Una más"
+                            className="btn join-item h-11 min-h-11 w-11 border-linea bg-hoja px-0"
+                          >
+                            <Icono nombre="sumar" className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
+                      <label className="w-20">
+                        <span className="mb-1 block text-xs text-tenue">Gramos c/u</span>
+                        <input
+                          name="item_gramos"
+                          inputMode="decimal"
+                          value={l.gramos}
+                          onChange={(e) => cambiarGramos(l, e.target.value)}
+                          placeholder="0"
+                          className="entrada bg-hoja"
+                        />
+                      </label>
+                      <label className="w-28">
+                        <span className="mb-1 block text-xs text-tenue">Precio c/u</span>
+                        <span className="relative block">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-tenue" aria-hidden="true">
+                            $
+                          </span>
+                          <input
+                            inputMode="decimal"
+                            value={l.unitario}
+                            onChange={(e) =>
+                              cambiar(l.k, {
+                                unitario: e.target.value,
+                                auto: false,
+                              })
+                            }
+                            onBlur={() => precio > 0 && cambiar(l.k, { unitario: conPuntos(precio) })}
+                            placeholder="0"
+                            className="entrada bg-hoja pl-7"
+                          />
+                        </span>
+                      </label>
+                      <p className="ml-auto pb-2.5 text-right">
+                        <span className="block text-xs text-tenue">Total</span>
+                        {l.descripcion.trim() && !calculo[i].total ? (
+                          <span className="text-sm font-semibold text-warning">Sin precio</span>
+                        ) : (
+                          <span className="font-semibold">{plata(calculo[i].total)}</span>
+                        )}
+                      </p>
                     </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                    {sug > 0 && (
+                      <div className="mt-2 text-xs">
+                        <p className="text-tenue">Filamento {plata(aNumero(l.gramos) * costoGramo)} c/u · tocá un precio para usarlo</p>
+                        <div className="mt-1 flex gap-1.5">
+                          {[
+                            ['Sugerido', sug, multiplicador],
+                            ['Por mayor', mayor, multiplicadorMayor],
+                          ].map(([n, v, x]) => (
+                            <button
+                              key={n}
+                              type="button"
+                              aria-pressed={precio === v}
+                              onClick={() =>
+                                cambiar(l.k, {
+                                  unitario: conPuntos(v),
+                                  auto: n === 'Sugerido',
+                                })
+                              }
+                              className={`btn btn-ghost btn-sm min-h-11 min-w-0 flex-1 flex-nowrap gap-1 whitespace-nowrap rounded-full border px-2.5 text-xs sm:flex-none sm:px-3 sm:text-sm ${marcado(precio === v)}`}
+                            >
+                              {n} {plata(v)}
+                              <span className="text-tenue">×{num(x)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
 
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={otraPieza} className="btn btn-ghost min-h-11 border border-dashed border-linea font-medium">
-              <Icono nombre="sumar" className="h-4 w-4" /> Otra pieza
-            </button>
-            {productos.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setCatalogo((v) => !v)}
-                aria-expanded={catalogo}
-                aria-controls={`${uid}-catalogo`}
-                className={`btn btn-ghost min-h-11 border font-medium ${marcado(catalogo)}`}
-              >
-                <Icono nombre="buscar" className="h-4 w-4" /> Del catálogo
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={otraPieza} className="btn btn-ghost min-h-11 border border-dashed border-linea font-medium">
+                <Icono nombre="sumar" className="h-4 w-4" /> Otra pieza
               </button>
-            )}
-          </div>
-          {catalogo && (
-            <div id={`${uid}-catalogo`} className="rounded-box border border-linea bg-hoja p-3">
-              <label className="relative block">
-                <span className="sr-only">Buscar en el catálogo</span>
-                <Icono nombre="buscar" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tenue" />
-                <input
-                  autoFocus
-                  value={buscar}
-                  onChange={(e) => setBuscar(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (encontrados[0]) elegir(encontrados[0]);
-                    }
-                    if (e.key === 'Escape') {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      setCatalogo(false);
-                    }
-                  }}
-                  placeholder="Buscar un modelo que ya hiciste"
-                  className="entrada pl-9"
-                />
-              </label>
-              {encontrados.length === 0 ? (
-                <p className="mt-2 text-sm text-tenue">No hay ninguno con ese nombre. Escribilo como pieza nueva.</p>
-              ) : (
-                <ul className="mt-2 grid gap-1 sm:grid-cols-2">
-                  {encontrados.map((p) => (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        onClick={() => elegir(p)}
-                        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-btn px-3 text-left text-sm hover:bg-papel"
-                      >
-                        <span className="font-medium">{p.nombre}</span>
-                        <span className="shrink-0 text-xs text-tenue">{p.precio_unidad ? plata(p.precio_unidad) : `${p.gramos_unidad} g`}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              {productos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCatalogo((v) => !v)}
+                  aria-expanded={catalogo}
+                  aria-controls={`${uid}-catalogo`}
+                  className={`btn btn-ghost min-h-11 border font-medium ${marcado(catalogo)}`}
+                >
+                  <Icono nombre="buscar" className="h-4 w-4" /> Del catálogo
+                </button>
               )}
             </div>
-          )}
-
-          <div className="mt-2 border-t border-linea pt-4">{clienteYFecha}</div>
+            {catalogo && (
+              <div id={`${uid}-catalogo`} className="rounded-box border border-linea bg-hoja p-3">
+                <label className="relative block">
+                  <span className="sr-only">Buscar en el catálogo</span>
+                  <Icono nombre="buscar" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tenue" />
+                  <input
+                    autoFocus
+                    value={buscar}
+                    onChange={(e) => setBuscar(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (encontrados[0]) elegir(encontrados[0]);
+                      }
+                      if (e.key === 'Escape') {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setCatalogo(false);
+                      }
+                    }}
+                    placeholder="Buscar un modelo que ya hiciste"
+                    className="entrada pl-9"
+                  />
+                </label>
+                {encontrados.length === 0 ? (
+                  <p className="mt-2 text-sm text-tenue">No hay ninguno con ese nombre. Escribilo como pieza nueva.</p>
+                ) : (
+                  <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                    {encontrados.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onClick={() => elegir(p)}
+                          className="flex min-h-11 w-full items-center justify-between gap-3 rounded-btn px-3 text-left text-sm hover:bg-papel"
+                        >
+                          <span className="font-medium">{p.nombre}</span>
+                          <span className="shrink-0 text-xs text-tenue">{p.precio_unidad ? plata(p.precio_unidad) : `${p.gramos_unidad} g`}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="order-2 shrink-0 border-t border-linea pt-4 lg:order-none lg:mt-2">{clienteYFecha}</div>
         </section>
 
         {/* Entrega y cobro */}
-        <section aria-labelledby={`${uid}-cobro`} className="flex shrink-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-linea lg:pl-5">
+        <section aria-labelledby={`${uid}-cobro`} className="contents lg:flex lg:min-h-0 lg:flex-col lg:gap-4 lg:overflow-y-auto lg:border-l lg:border-linea lg:pl-5">
           <h2 id={`${uid}-cobro`} className="sr-only">
             Entrega y cobro
           </h2>
-          <Opciones
-            nombre="¿Ya la entregaste?"
-            valor={estado}
-            alCambiar={(v) => {
-              setEstado(v);
-              if (edicion) return;
-              // Un encargo casi siempre arranca con seña; al entregarla, lo normal es que pague todo.
-              if (v === 'encargo' && cobro === 'todo') setCobro('parte');
-              if (v === 'entregada' && cobro === 'parte' && !cobrado) setCobro('todo');
-            }}
-            opciones={[
-              ['entregada', 'Entregada'],
-              ['encargo', 'Encargo'],
-            ]}
-          />
-          <input type="hidden" name="estado" value={estado} />
+          <div className="order-1 shrink-0 lg:order-none">
+            <Opciones
+              nombre="¿Ya la entregaste?"
+              valor={estado}
+              alCambiar={(v) => {
+                setEstado(v);
+                if (edicion) return;
+                // Un encargo casi siempre arranca con seña; al entregarla, lo normal es que pague todo.
+                if (v === 'encargo' && cobro === 'todo') setCobro('parte');
+                if (v === 'entregada' && cobro === 'parte' && !cobrado) setCobro('todo');
+              }}
+              opciones={[
+                ['entregada', 'Entregada'],
+                ['encargo', 'Encargo'],
+              ]}
+            />
+            <input type="hidden" name="estado" value={estado} />
+          </div>
 
-          {edicion ? (
-            <div className="space-y-2 rounded-box bg-papel p-3 text-sm">
-              <p>
-                Cobrado <strong>{plata(previo)}</strong>
-                {total > 0 && <> de {plata(total)}</>}.
-              </p>
-              {falta > 0 && (
-                <>
-                  <p className={diferencia ? 'text-tenue' : 'font-medium text-pierde'}>
-                    {diferencia ? 'Queda cobrada entera.' : `Va a quedar debiendo ${plata(falta)}.`}
-                  </p>
-                  <label className="flex min-h-11 cursor-pointer items-center gap-2">
-                    <input type="checkbox" checked={diferencia} onChange={(e) => setDiferencia(e.target.checked)} className="checkbox checkbox-sm" />
-                    Registrar los {plata(falta)} como cobrados hoy
-                  </label>
-                  {diferencia && <input type="hidden" name="cobrar_diferencia" value={falta} />}
-                </>
-              )}
-              {total > 0 && previo > total && (
-                <p className="font-medium text-pierde">Cobraste {plata(previo - total)} de más. Corregí o borrá un cobro desde el detalle de la venta.</p>
-              )}
-              <p className="text-xs text-tenue">Los cobros anteriores se ven y se borran desde el detalle.</p>
-            </div>
-          ) : (
-            <>
-              <Opciones
-                nombre="¿Cuánto pagó?"
-                valor={cobro}
-                alCambiar={setCobro}
-                opciones={[
-                  ['todo', 'Pagó todo'],
-                  ['parte', estado === 'encargo' ? 'Dejó seña' : 'Una parte'],
-                  ['nada', 'No pagó'],
-                ]}
-              />
-              {cobro === 'todo' && <input type="hidden" name="pago_todo" value="on" />}
-              {cobro === 'parte' && (
-                <label className="block text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="shrink-0">{estado === 'encargo' ? 'Seña' : 'Cobré'}</span>
-                    <input
-                      name="cobrado"
-                      inputMode="decimal"
-                      value={cobrado}
-                      onChange={(e) => setCobrado(e.target.value)}
-                      autoFocus
-                      placeholder="0"
-                      className="entrada"
-                    />
-                    {total > 0 && <span className="shrink-0 text-tenue">de {plata(total)}</span>}
-                  </span>
-                  {total > 0 && aNumero(cobrado) > 0 && aNumero(cobrado) < total && (
-                    <span className="mt-1 block text-xs text-tenue">Te van a quedar debiendo {plata(total - aNumero(cobrado))}.</span>
-                  )}
-                </label>
-              )}
-            </>
-          )}
-
-          {pideMedio && (
-            <fieldset>
-              <legend className="rotulo mb-1">¿Cómo pagó?</legend>
-              <div className="flex flex-wrap gap-1.5">
-                {MEDIOS.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    aria-pressed={medio === m}
-                    onClick={() => setMedio(m)}
-                    className={`btn btn-ghost btn-sm min-h-11 rounded-full border ${marcado(medio === m)}`}
-                  >
-                    {m}
-                  </button>
-                ))}
+          <div className="order-3 flex shrink-0 flex-col gap-4 lg:order-none">
+            {edicion ? (
+              <div className="space-y-2 rounded-box bg-papel p-3 text-sm">
+                <p>
+                  Cobrado <strong>{plata(previo)}</strong>
+                  {total > 0 && <> de {plata(total)}</>}.
+                </p>
+                {falta > 0 && (
+                  <>
+                    <p className={diferencia ? 'text-tenue' : 'font-medium text-pierde'}>
+                      {diferencia ? 'Queda cobrada entera.' : `Va a quedar debiendo ${plata(falta)}.`}
+                    </p>
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2">
+                      <input type="checkbox" checked={diferencia} onChange={(e) => setDiferencia(e.target.checked)} className="checkbox checkbox-sm" />
+                      Registrar los {plata(falta)} como cobrados hoy
+                    </label>
+                    {diferencia && <input type="hidden" name="cobrar_diferencia" value={falta} />}
+                  </>
+                )}
+                {total > 0 && previo > total && (
+                  <p className="font-medium text-pierde">Cobraste {plata(previo - total)} de más. Corregí o borrá un cobro desde el detalle de la venta.</p>
+                )}
+                <p className="text-xs text-tenue">Los cobros anteriores se ven y se borran desde el detalle.</p>
               </div>
-            </fieldset>
-          )}
-          <input type="hidden" name="medio_pago" value={medio} />
+            ) : (
+              <>
+                <Opciones
+                  nombre="¿Cuánto pagó?"
+                  valor={cobro}
+                  alCambiar={setCobro}
+                  opciones={[
+                    ['todo', 'Pagó todo'],
+                    ['parte', estado === 'encargo' ? 'Dejó seña' : 'Una parte'],
+                    ['nada', 'No pagó'],
+                  ]}
+                />
+                {cobro === 'todo' && <input type="hidden" name="pago_todo" value="on" />}
+                {cobro === 'parte' && (
+                  <label className="block text-sm">
+                    <span className="flex items-center gap-2">
+                      <span className="shrink-0">{estado === 'encargo' ? 'Seña' : 'Cobré'}</span>
+                      <input name="cobrado" inputMode="decimal" value={cobrado} onChange={(e) => setCobrado(e.target.value)} placeholder="0" className="entrada" />
+                      {total > 0 && <span className="shrink-0 text-tenue">de {plata(total)}</span>}
+                    </span>
+                    {total > 0 && aNumero(cobrado) > 0 && aNumero(cobrado) < total && (
+                      <span className="mt-1 block text-xs text-tenue">Te van a quedar debiendo {plata(total - aNumero(cobrado))}.</span>
+                    )}
+                  </label>
+                )}
+              </>
+            )}
 
-          <details className="text-sm" open={Boolean(edicion?.gastos || edicion?.notas)}>
-            <summary className="flex min-h-11 cursor-pointer select-none items-center gap-1.5 font-medium">
-              <Icono nombre="sumar" className="h-4 w-4" /> Envío o comisión, y notas
-              <span className="font-normal text-tenue">(opcional)</span>
-            </summary>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <label>
-                <span className="mb-1 block text-xs text-tenue">Envío o comisión que pagás vos</span>
-                <input name="gastos" inputMode="decimal" value={gastos} onChange={(e) => setGastos(e.target.value)} placeholder="0" className="entrada" />
-              </label>
-              <label>
-                <span className="mb-1 block text-xs text-tenue">Notas</span>
-                <input name="notas" value={notas} onChange={(e) => setNotas(e.target.value)} className="entrada" placeholder="Color, diseño…" />
-              </label>
-            </div>
-          </details>
+            {pideMedio && (
+              <fieldset>
+                <legend className="rotulo mb-1">¿Cómo pagó?</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {MEDIOS.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={medio === m}
+                      onClick={() => setMedio(m)}
+                      className={`btn btn-ghost btn-sm min-h-11 rounded-full border ${marcado(medio === m)}`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+            <input type="hidden" name="medio_pago" value={medio} />
+
+            <details className="text-sm" open={Boolean(edicion?.gastos || edicion?.notas)}>
+              <summary className="flex min-h-11 cursor-pointer select-none items-center gap-1.5 font-medium">
+                <Icono nombre="sumar" className="h-4 w-4" /> Envío o comisión, y notas
+                <span className="font-normal text-tenue">(opcional)</span>
+              </summary>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <label>
+                  <span className="mb-1 block text-xs text-tenue">Envío o comisión que pagás vos</span>
+                  <input name="gastos" inputMode="decimal" value={gastos} onChange={(e) => setGastos(e.target.value)} placeholder="0" className="entrada" />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs text-tenue">Notas</span>
+                  <input name="notas" value={notas} onChange={(e) => setNotas(e.target.value)} className="entrada" placeholder="Color, diseño…" />
+                </label>
+              </div>
+            </details>
+          </div>
         </section>
       </div>
 
-      <footer className="order-last shrink-0 border-t border-linea bg-hoja px-4 py-3">
+      <footer className="order-last shrink-0 border-t border-linea bg-hoja px-4 py-2 sm:py-3">
         {sinPrecio && (
           <p role="status" className="mb-2 rounded-btn bg-warning/15 px-3 py-2 text-sm">
             Esta venta no tiene precio. Si fue un regalo, guardala así; si no, poné cuánto cobraste o marcala como encargo.
@@ -779,15 +778,15 @@ export default function VentaRapida({
         )}
         <div className="flex items-center justify-between gap-3">
           <p className="min-w-0 leading-tight">
-            <span className="block text-2xl font-bold">{plata(total)}</span>
-            <span className="block text-xs font-medium">{resumen}</span>
-            {detalleGanancia && <span className={`block text-xs ${pierde ? 'font-semibold text-warning' : 'text-tenue'}`}>{detalleGanancia}</span>}
+            <span className="block text-xl font-bold sm:text-2xl">{plata(total)}</span>
+            <span className="block truncate text-xs font-medium">{resumen}</span>
+            {detalleGanancia && <span className={`block truncate text-xs ${pierde ? 'font-semibold text-warning' : 'text-tenue'}`}>{detalleGanancia}</span>}
           </p>
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-tenue lg:inline">
               <kbd className="kbd kbd-xs">Ctrl</kbd> o <kbd className="kbd kbd-xs">⌘</kbd> + <kbd className="kbd kbd-xs">Enter</kbd>
             </span>
-            <Enviar className={`btn btn-lg min-w-40 ${sinPrecio ? 'btn-warning' : 'btn-primary'}`} deshabilitado={listas === 0}>
+            <Enviar className={`btn shrink-0 sm:btn-lg sm:min-w-40 ${sinPrecio ? 'btn-warning' : 'btn-primary'}`} deshabilitado={listas === 0}>
               {edicion ? 'Guardar cambios' : sinPrecio ? 'Guardar sin precio' : 'Guardar venta'}
             </Enviar>
           </div>

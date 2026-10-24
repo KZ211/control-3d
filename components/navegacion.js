@@ -70,14 +70,26 @@ export function BarraInferior() {
   const actual = grupoDe(ruta).id;
   const mas = useRef(null);
   const enMas = !['panel', 'ventas', 'plata'].includes(actual);
+  // Mientras escribís una venta la barra se esconde: le deja lugar al formulario
+  // y al teclado.
+  const [cargando, setCargando] = useState(false);
+  useEffect(() => {
+    const dentro = (el) => Boolean(el?.closest?.('[data-venta-form]'));
+    const entra = (e) => setCargando(dentro(e.target));
+    const sale = (e) => !dentro(e.relatedTarget) && setCargando(false);
+    document.addEventListener('focusin', entra);
+    document.addEventListener('focusout', sale);
+    return () => {
+      document.removeEventListener('focusin', entra);
+      document.removeEventListener('focusout', sale);
+    };
+  }, []);
 
   const Item = ({ grupo }) => (
     <Link
       href={grupo.href}
       aria-current={actual === grupo.id ? 'page' : undefined}
-      className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium ${
-        actual === grupo.id ? 'text-primary' : 'text-tenue'
-      }`}
+      className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium ${actual === grupo.id ? 'text-primary' : 'text-tenue'}`}
     >
       <Icono nombre={grupo.icono} />
       {grupo.nombre}
@@ -86,18 +98,18 @@ export function BarraInferior() {
 
   return (
     <>
-      <nav aria-label="Secciones" className="shrink-0 border-t border-linea bg-hoja pb-[env(safe-area-inset-bottom)] md:hidden">
+      <nav aria-label="Secciones" className={`shrink-0 border-t border-linea bg-hoja pb-[env(safe-area-inset-bottom)] md:hidden ${cargando ? 'hidden' : ''}`}>
         <div className="flex items-stretch">
           <Item grupo={PORID.panel} />
           <Item grupo={PORID.ventas} />
           {/* En la pestaña Nueva el formulario ya está en pantalla con su propio botón de guardar. */}
-          <div className="flex flex-1 items-center justify-center">
-            {ruta !== '/ventas' && (
+          {ruta !== '/ventas' && (
+            <div className="flex flex-1 items-center justify-center">
               <button type="button" onClick={abrirVenta} aria-label="Cargar una venta" className="btn btn-circle btn-primary shadow-md">
                 <Icono nombre="sumar" className="h-6 w-6" />
               </button>
-            )}
-          </div>
+            </div>
+          )}
           <Item grupo={PORID.plata} />
           <button
             type="button"
@@ -120,9 +132,7 @@ export function BarraInferior() {
                   <Link
                     href={g.href}
                     onClick={() => mas.current?.close()}
-                    className={`flex min-h-16 items-center gap-3 rounded-box border px-4 font-medium ${
-                      actual === id ? 'border-acento text-primary' : 'border-linea'
-                    }`}
+                    className={`flex min-h-16 items-center gap-3 rounded-box border px-4 font-medium ${actual === id ? 'border-acento text-primary' : 'border-linea'}`}
                   >
                     <Icono nombre={g.icono} />
                     {g.nombre}
@@ -168,9 +178,7 @@ export function Pestanas({ insignias = {} }) {
   return (
     <header className="shrink-0 border-b border-linea bg-hoja">
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-6 gap-y-1 px-4 pt-3 md:px-6 md:py-3">
-        <h1 className="text-lg font-bold tracking-tight md:text-xl">
-          {grupo.nombre}
-        </h1>
+        <h1 className="text-lg font-bold tracking-tight md:text-xl">{grupo.nombre}</h1>
         {grupo.pestanas.length > 0 && (
           <nav
             ref={lista}
