@@ -49,7 +49,7 @@ body {
 
 @layer components {
   .entrada {
-    @apply block min-h-11 w-full rounded-btn border border-linea bg-hoja px-3 text-base text-tinta outline-none transition-colors placeholder:text-tenue focus:border-primary;
+    @apply block min-h-11 w-full rounded-btn border border-linea bg-hoja px-3 text-base text-tinta outline-none transition-colors placeholder:text-tenue focus:border-tinta;
   }
   .boton {
     @apply btn btn-neutral min-h-11 font-semibold;
@@ -133,7 +133,8 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid rgb(var(--acento));
+  /* El foco en tinta: el naranja se confundía con un campo con error. */
+  outline: 2px solid rgb(var(--tinta));
   outline-offset: 2px;
 }
 

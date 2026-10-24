@@ -1,19 +1,22 @@
 import Link from 'next/link';
+import Enlace from '@/components/enlace';
 import { cargar } from '@/lib/datos';
 import { resultado, gananciaNeta } from '@/lib/calculos';
 import { plata, pct, hoy, moverMes, nombreMes } from '@/lib/formato';
-import { Pagina, Hoja } from '@/components/ui';
+import { Pagina } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
-function Tema({ id, titulo, children }) {
+// Se muestra un tema a la vez.
+function Tema({ id, actual, titulo, children }) {
+  if (id !== actual) return null;
   return (
-    <Hoja>
-      <h2 id={id} className="scroll-mt-28 text-xl font-semibold tracking-tight">
+    <article aria-labelledby={id} className="tarjeta h-full overflow-y-auto p-5 md:p-6">
+      <h2 id={id} className="text-xl font-semibold tracking-tight md:text-2xl">
         {titulo}
       </h2>
       <div className="mt-3 max-w-3xl space-y-3 leading-relaxed">{children}</div>
-    </Hoja>
+    </article>
   );
 }
 
@@ -34,8 +37,9 @@ const TEMAS = [
   ['rutina', 'Una rutina simple'],
 ];
 
-export default async function Aprender() {
+export default async function Aprender({ searchParams }) {
   const d = await cargar();
+  const tema = TEMAS.some(([id]) => id === searchParams?.tema) ? searchParams.tema : TEMAS[0][0];
   const total = resultado(d);
   const rec = d.recuperacion;
   const bol = d.bolsillo;
@@ -50,16 +54,28 @@ export default async function Aprender() {
   const mesesParaRecuperar = promedio > 0 && rec.falta > 0 ? Math.ceil(rec.falta / promedio) : null;
 
   return (
-    <Pagina titulo="Aprender" bajada="Los conceptos básicos para llevar las cuentas de un emprendimiento, con tus propios números.">
-      <nav aria-label="Temas" className="flex flex-wrap gap-2">
-        {TEMAS.map(([id, nombre]) => (
-          <a key={id} href={`#${id}`} className="boton-suave">
-            {nombre}
-          </a>
-        ))}
+    <Pagina className="flex h-full flex-col gap-4 space-y-0 md:flex-row">
+      <nav aria-label="Temas" className="sin-barra -mx-4 shrink-0 overflow-x-auto px-4 md:mx-0 md:w-56 md:overflow-visible md:px-0">
+        <ul className="flex gap-1.5 whitespace-nowrap md:flex-col md:whitespace-normal">
+          {TEMAS.map(([id, nombre], i) => (
+            <li key={id}>
+              <Enlace
+                href={`/aprender?tema=${id}`}
+                aria-current={tema === id ? 'page' : undefined}
+                className={`flex min-h-10 items-center gap-2 rounded-btn px-3 text-sm font-medium ${
+                  tema === id ? 'bg-tinta text-papel' : 'border border-linea bg-hoja text-tenue hover:text-tinta md:border-0 md:bg-transparent'
+                }`}
+              >
+                <span className="text-xs opacity-60">{i + 1}</span>
+                {nombre}
+              </Enlace>
+            </li>
+          ))}
+        </ul>
       </nav>
+      <div className="min-h-0 flex-1">
 
-      <Tema id="bruto-neto" titulo="Bruto, neto y ganancia">
+      <Tema actual={tema} id="bruto-neto" titulo="Bruto, neto y ganancia">
         <p>
           <strong>Venta bruta</strong> es todo lo que te paga el cliente. <strong>Venta neta</strong> es lo que queda después de lo que se va en la
           venta misma: envío, descuentos, comisiones. <strong>Ganancia</strong> es la neta menos lo que te costó fabricar lo que vendiste.
@@ -79,7 +95,7 @@ export default async function Aprender() {
         </p>
       </Tema>
 
-      <Tema id="costo" titulo="El costo de una impresión">
+      <Tema actual={tema} id="costo" titulo="El costo de una impresión">
         <p>Una pieza cuesta mucho más que el filamento que usa. La app suma tres cosas:</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
@@ -102,7 +118,7 @@ export default async function Aprender() {
         </p>
       </Tema>
 
-      <Tema id="precio" titulo="Cómo poner precio">
+      <Tema actual={tema} id="precio" titulo="Cómo poner precio">
         <p>
           Tu planilla multiplica el costo del filamento: primero ×3, después ×4 y ahora ×5. Es un método simple y muy usado. Lo importante es saber
           qué tiene que pagar ese multiplicador además del material: la luz, el desgaste de la máquina, las piezas fallidas, tu tiempo y la ganancia.
@@ -123,7 +139,7 @@ export default async function Aprender() {
         </p>
       </Tema>
 
-      <Tema id="reinversion" titulo="Reinvertir">
+      <Tema actual={tema} id="reinversion" titulo="Reinvertir">
         <p>
           <strong>Reinvertir</strong> es usar parte de lo que ganás para que el emprendimiento siga andando o crezca: filamento, repuestos, otra
           máquina. Apartar un porcentaje fijo de cada venta (vos usás {pct(d.reinversion.pct / 100)}) evita gastarse todo y quedarse sin material.
@@ -131,14 +147,14 @@ export default async function Aprender() {
         <Ejemplo>
           De lo cobrado, {pct(d.reinversion.pct / 100)} son <strong>{plata(d.reinversion.apartar)}</strong>. Con la caja ya compraste{' '}
           {plata(d.reinversion.reinvertido)}, así que te quedan <strong>{plata(d.reinversion.disponible)}</strong> para reinvertir.{' '}
-          <Link href="/tu-plata" className="underline">
+          <Link href="/plata/reinversion" className="underline">
             Ver detalle
           </Link>
           .
         </Ejemplo>
       </Tema>
 
-      <Tema id="caja" titulo="La caja (o “hacer caja”)">
+      <Tema actual={tema} id="caja" titulo="La caja (o “hacer caja”)">
         <p>
           La <strong>caja</strong> es la plata que realmente tiene el emprendimiento, en efectivo o en la cuenta. Sube cuando cobrás y baja cuando
           pagás algo con esa plata.
@@ -149,14 +165,14 @@ export default async function Aprender() {
         </p>
         <Ejemplo>
           Según lo registrado, hoy hay <strong>{plata(b.caja)}</strong> en la caja.{' '}
-          <Link href="/caja" className="underline">
+          <Link href="/plata/caja" className="underline">
             Ver movimientos
           </Link>
           .
         </Ejemplo>
       </Tema>
 
-      <Tema id="resultado" titulo="El resultado (¿gané o perdí este mes?)">
+      <Tema actual={tema} id="resultado" titulo="El resultado (¿gané o perdí este mes?)">
         <p>
           El <strong>estado de resultados</strong> responde “¿este mes gané o perdí?”. Suma lo que vendiste y le resta lo que costó producirlo y los
           gastos del mes.
@@ -167,7 +183,7 @@ export default async function Aprender() {
         </p>
       </Tema>
 
-      <Tema id="balance" titulo="El balance (¿cuánto vale lo que tengo?)">
+      <Tema actual={tema} id="balance" titulo="El balance (¿cuánto vale lo que tengo?)">
         <p>
           El <strong>balance</strong> es una foto de un día. De un lado, todo lo que tenés (los <strong>activos</strong>): caja, lo que te deben,
           filamento sin usar, piezas hechas y máquinas. Del otro, lo que debés (los <strong>pasivos</strong>): las cuotas y las señas de encargos que
@@ -182,7 +198,7 @@ export default async function Aprender() {
         <p>Las máquinas valen menos con cada hora de uso: por eso en el balance cuentan por el valor que les queda, no por lo que pagaste.</p>
       </Tema>
 
-      <Tema id="capital" titulo="Capital y deuda: tu liquidación">
+      <Tema actual={tema} id="capital" titulo="Capital y deuda: tu liquidación">
         <p>
           La plata de tu liquidación no es una deuda: no le debés a nadie. Es <strong>capital</strong>, plata tuya invertida que querés que vuelva.
           Una <strong>deuda</strong> (un <strong>pasivo</strong>) es algo que tenés que pagar sí o sí, como las cuotas del AMS.
@@ -197,7 +213,7 @@ export default async function Aprender() {
         </Ejemplo>
       </Tema>
 
-      <Tema id="recuperar" titulo="¿Cuándo recupero todo?">
+      <Tema actual={tema} id="recuperar" titulo="¿Cuándo recupero todo?">
         <p>
           Una forma simple de estimarlo: lo que falta recuperar del equipo dividido la ganancia neta de un mes normal. Es el{' '}
           <strong>plazo de recupero</strong>.
@@ -217,7 +233,7 @@ export default async function Aprender() {
         </p>
       </Tema>
 
-      <Tema id="rutina" titulo="Una rutina simple">
+      <Tema actual={tema} id="rutina" titulo="Una rutina simple">
         <ul className="list-disc space-y-1 pl-5">
           <li>
             <strong>Cada venta:</strong> cargá la venta con sus piezas. Si querés el costo exacto, cargá también sus impresiones (los gramos y las
@@ -234,6 +250,7 @@ export default async function Aprender() {
           </li>
         </ul>
       </Tema>
+      </div>
     </Pagina>
   );
 }

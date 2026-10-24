@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { Formulario, Enviar } from '@/components/formulario';
-import { crearCompra } from '../../acciones';
+import { crearCompra } from '@/app/acciones';
 
 const CATEGORIAS = [
   ['filamento', 'Filamento'],
   ['maquina', 'Máquina'],
-  ['accesorio', 'Accesorio (AMS, cama, hotend…)'],
+  ['accesorio', 'Accesorio'],
   ['repuesto', 'Repuesto'],
-  ['insumo', 'Insumo (fijador, lijas, pegamento…)'],
+  ['insumo', 'Insumo'],
   ['otro', 'Otro'],
 ];
 
@@ -23,16 +23,25 @@ export default function FormCompra({ hoy, maquinas }) {
 
   return (
     <Formulario accion={crearCompra} alTerminar={reiniciar} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium">Qué es</span>
-        <select name="categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)} className="entrada">
+      <fieldset className="sm:col-span-2 lg:col-span-4">
+        <legend className="mb-1 text-sm font-medium">Qué es</legend>
+        <input type="hidden" name="categoria" value={categoria} />
+        <div className="flex flex-wrap gap-1.5">
           {CATEGORIAS.map(([v, n]) => (
-            <option key={v} value={v}>
+            <button
+              key={v}
+              type="button"
+              aria-pressed={categoria === v}
+              onClick={() => setCategoria(v)}
+              className={`btn btn-sm min-h-10 border-linea font-medium ${categoria === v ? 'btn-neutral' : 'btn-ghost border bg-hoja'}`}
+            >
               {n}
-            </option>
+            </button>
           ))}
-        </select>
-      </label>
+        </div>
+        {categoria === 'accesorio' && <p className="mt-1 text-xs text-tenue">AMS, cama, hotend… Se suma al precio de la impresora que elijas.</p>}
+        {categoria === 'insumo' && <p className="mt-1 text-xs text-tenue">Fijador, lijas, pegamento… Cuenta como gasto del mes.</p>}
+      </fieldset>
       <label className="block text-sm sm:col-span-2">
         <span className="mb-1 block font-medium">Descripción</span>
         <input name="descripcion" required className="entrada" placeholder={categoria === 'filamento' ? 'Ej: PLA Grilon3' : ''} />
@@ -110,7 +119,7 @@ export default function FormCompra({ hoy, maquinas }) {
         <input name="notas" className="entrada" />
       </label>
       <div className="sm:col-span-2 lg:col-span-4">
-        <Enviar>Guardar compra</Enviar>
+        <Enviar className="btn btn-primary min-h-11">Guardar compra</Enviar>
       </div>
     </Formulario>
   );
