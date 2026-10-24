@@ -2,7 +2,7 @@ import { cargar } from '@/lib/datos';
 import { plata, plataFina } from '@/lib/formato';
 import { Pagina, Hoja, Campo, Explica } from '@/components/ui';
 import { Formulario, Enviar } from '@/components/formulario';
-import { guardarAjustes } from '../../acciones';
+import { guardarAjustes } from '@/app/acciones';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,9 +14,10 @@ export default async function Ajustes() {
   const promedio = gramosStock ? d.stock.reduce((s, l) => s + l.valor, 0) / gramosStock : 0;
 
   return (
-    <Pagina titulo="Ajustes" bajada="Las reglas de tu planilla, para que la app calcule igual que vos.">
-      <Hoja className="max-w-xl">
-        <Formulario accion={guardarAjustes} limpiar={false} className="space-y-4">
+    <Pagina className="max-w-3xl">
+      <p className="text-sm text-tenue">Las reglas de tu planilla, para que la app calcule igual que vos.</p>
+      <Hoja className="p-5">
+        <Formulario accion={guardarAjustes} limpiar={false} className="grid gap-4 sm:grid-cols-2">
           <Campo
             nombre="Precio por gramo de filamento"
             ayuda={`Se usa cuando una pieza no sale de un lote cargado. La planilla usa $18 y $20.${promedio ? ` El filamento que tenés en stock promedia ${plataFina(promedio)}.` : ''}`}
@@ -35,7 +36,7 @@ export default async function Ajustes() {
           <Campo nombre="Precio del kWh" ayuda="En tu factura de luz: el total a pagar dividido los kWh consumidos da un buen promedio.">
             <input name="precio_kwh" inputMode="decimal" defaultValue={precioKwh} className="entrada" />
           </Campo>
-          <Enviar>Guardar</Enviar>
+          <Enviar className="btn btn-primary min-h-11 sm:col-span-2">Guardar</Enviar>
         </Formulario>
         <Explica titulo="¿Qué multiplicador poner?">
           <p>

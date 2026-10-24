@@ -3,7 +3,7 @@ import { cargar } from '@/lib/datos';
 import { plata, fecha } from '@/lib/formato';
 import { Pagina, Seccion, Hoja, Vacio, Campo, Explica } from '@/components/ui';
 import { Accion, Formulario, Enviar } from '@/components/formulario';
-import { borrar, crearCliente, editarCliente } from '../../acciones';
+import { borrar, crearCliente, editarCliente } from '@/app/acciones';
 
 export const dynamic = 'force-dynamic';
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Formulario, Enviar } from '@/components/formulario';
-import { crearImpresion } from '../../acciones';
+import { crearImpresion } from '@/app/acciones';
 import { costoDeImpresion, precioSugerido } from '@/lib/calculos';
 import { plata, plataFina, gramos as fmtGramos, leerNumero } from '@/lib/formato';
 
@@ -206,7 +206,7 @@ export default function FormImpresion({ hoy, maquinas, lotes, piezas, productos,
         <p className="text-2xl font-bold">{plata(precioSugerido(costo.material / cantidad, multiplicador))}</p>
         <p className="mt-2 text-tenue">Por mayor (× {multiplicadorMayor})</p>
         <p className="text-lg font-semibold">{plata(precioSugerido(costo.material / cantidad, multiplicadorMayor))}</p>
-        <Enviar className="boton mt-4 w-full">Guardar impresión</Enviar>
+        <Enviar className="btn btn-primary mt-4 min-h-11 w-full">Guardar impresión</Enviar>
       </aside>
     </Formulario>
   );

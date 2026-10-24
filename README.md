@@ -22,8 +22,12 @@ Next.js 14 (App Router), JavaScript, Tailwind CSS y Supabase (base de datos y lo
 ## Cómo está armado
 
 ```
-app/(app)/          una carpeta por pantalla: panel, ventas, impresiones, clientes,
-                    productos, compras, maquinas, caja, tu-plata, aprender, ajustes
+app/(app)/          una carpeta por sección, cada pestaña es una página:
+                    (panel) resumen, mes, balance · ventas nueva, encargos, cobrar,
+                    historial, clientes · taller imprimir, impresiones, productos,
+                    maquinas · compras nueva, filamento, cuotas, historial ·
+                    plata recuperación, caja, bolsillo, reinversion · aprender · ajustes
+components/         armazón (menú, pestañas), gráficos y la carga rápida de ventas
 app/acciones.js     todo lo que escribe en la base (acciones de servidor)
 app/login/          inicio de sesión
 lib/calculos.js     todos los números (costos, caja, resultado, balance), con pruebas
