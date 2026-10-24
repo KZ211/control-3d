@@ -556,7 +556,7 @@ export default function VentaRapida({
                       <p className="ml-auto pb-2.5 text-right">
                         <span className="block text-xs text-tenue">Total</span>
                         {l.descripcion.trim() && !calculo[i].total ? (
-                          <span className="text-sm font-semibold text-warning">Sin precio</span>
+                          <span className="text-sm font-medium text-tenue">Sin precio</span>
                         ) : (
                           <span className="font-semibold">{plata(calculo[i].total)}</span>
                         )}
@@ -778,7 +778,7 @@ export default function VentaRapida({
 
       <footer className="order-last shrink-0 border-t border-linea bg-hoja px-4 py-2 sm:py-3">
         {sinPrecio && (
-          <p role="status" className="mb-2 rounded-btn bg-warning/15 px-3 py-2 text-sm">
+          <p role="status" className="mb-2 rounded-btn bg-papel px-3 py-2 text-sm">
             Sin precio se guarda como <strong>regalo</strong>: no suma a lo vendido ni a lo cobrado, y el filamento cuenta como gasto. Si te pagaron, poné el precio; si
             todavía no sabés cuánto cobrar, marcala como encargo.
           </p>
@@ -793,7 +793,9 @@ export default function VentaRapida({
             <span className="hidden text-xs text-tenue lg:inline">
               <kbd className="kbd kbd-xs">Ctrl</kbd> o <kbd className="kbd kbd-xs">⌘</kbd> + <kbd className="kbd kbd-xs">Enter</kbd>
             </span>
-            <Enviar className={`btn shrink-0 sm:btn-lg sm:min-w-40 ${sinPrecio ? 'btn-warning' : 'btn-primary'}`} deshabilitado={!puedeGuardar}>
+            {/* Un regalo se guarda con otro botón (tinta y moño), para que no se confunda con una venta normal. */}
+            <Enviar className={`btn shrink-0 sm:btn-lg sm:min-w-40 ${sinPrecio ? 'btn-neutral' : 'btn-primary'}`} deshabilitado={!puedeGuardar}>
+              {sinPrecio && !edicion && <Icono nombre="regalo" className="h-5 w-5" />}
               {edicion ? 'Guardar cambios' : sinPrecio ? 'Guardar como regalo' : 'Guardar venta'}
             </Enviar>
           </div>
