@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import VentaRapida from './venta-rapida';
 import Icono from './iconos';
+import { avisar } from './avisos';
 
 // Abre la ventana con una venta ya cargada para corregirla.
 export const editarEnVentana = (edicion) => window.dispatchEvent(new CustomEvent('venta:editar', { detail: edicion }));
@@ -27,7 +28,6 @@ export default function DialogoVenta(props) {
   const sucio = useRef(false);
   const [abierto, setAbierto] = useState(false);
   const [edicion, setEdicion] = useState(null);
-  const [aviso, setAviso] = useState(null);
 
   useEffect(() => {
     // Cerrada queda inerte: si no, el formulario invisible recibe el foco con Tab.
@@ -61,12 +61,6 @@ export default function DialogoVenta(props) {
       window.removeEventListener('keydown', tecla);
     };
   }, []);
-
-  useEffect(() => {
-    if (!aviso) return;
-    const t = setTimeout(() => setAviso(null), 5000);
-    return () => clearTimeout(t);
-  }, [aviso]);
 
   // La venta nueva queda como borrador al cerrar; una edición con cambios pregunta antes.
   const puedeCerrar = () => !edicion || !sucio.current || window.confirm(DESCARTAR);
@@ -109,7 +103,7 @@ export default function DialogoVenta(props) {
                 alCambiarSucio={(v) => (sucio.current = v)}
                 alListo={(resumen) => {
                   sucio.current = false;
-                  setAviso(`Cambios guardados: ${resumen}`);
+                  avisar({ texto: `Cambios guardados: ${resumen}` });
                   ref.current?.close();
                 }}
               />
@@ -122,14 +116,6 @@ export default function DialogoVenta(props) {
           </button>
         </div>
       </dialog>
-      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 md:bottom-6">
-        {aviso && (
-          <p role="status" className="flex items-center gap-2 rounded-box bg-tinta px-4 py-3 text-sm font-medium text-papel shadow-lg">
-            <Icono nombre="listo" className="h-4 w-4" />
-            {aviso}
-          </p>
-        )}
-      </div>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { BarraLateral, BarraInferior } from '@/components/navegacion';
 import DialogoVenta from '@/components/dialogo-venta';
+import Avisos from '@/components/avisos';
 import { cargar, paraVender } from '@/lib/datos';
 import { hoy } from '@/lib/formato';
 
@@ -23,6 +24,7 @@ export default function AppLayout({ children }) {
       <Suspense fallback={null}>
         <Venta />
       </Suspense>
+      <Avisos />
     </div>
   );
 }

@@ -6,8 +6,9 @@ import { plata, fecha, pct, gramos, nombreMes } from '@/lib/formato';
 import { Pagina, Vacio, ConDetalle, PanelDetalle, Tabla, tonoDe } from '@/components/ui';
 import { Accion } from '@/components/formulario';
 import { BotonEditar } from '@/components/dialogo-venta';
-import { borrar, cobrar } from '@/app/acciones';
-import { FormCobro, Cobrado, Renglones, paraEditar } from '../partes';
+import { borrar } from '@/app/acciones';
+import { Cobrado, Renglones, paraEditar, paraCobrar } from '../partes';
+import { CobroRapido } from '@/components/pendientes';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,10 +36,10 @@ function Detalle({ v, cerrar }) {
       </dl>
       <Renglones venta={v} />
       <Cobrado venta={v} />
-      {v.saldo > 0 && <FormCobro venta={v} accion={cobrar.bind(null, v.id)} boton="Cobré" />}
+      {v.saldo > 0 && <CobroRapido venta={paraCobrar(v)} />}
 
       <BotonEditar edicion={paraEditar(v)} className="boton-suave min-h-11 w-full">
-        Editar piezas, cliente o fecha
+        Editar la venta
       </BotonEditar>
       {v.notas && <p className="text-sm text-tenue">{v.notas}</p>}
 

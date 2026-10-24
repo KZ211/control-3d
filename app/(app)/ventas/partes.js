@@ -1,5 +1,4 @@
-import { plata, hoy } from '@/lib/formato';
-import { Formulario, Enviar } from '@/components/formulario';
+import { plata } from '@/lib/formato';
 
 export function Renglones({ venta }) {
   return (
@@ -42,22 +41,9 @@ export function paraEditar(v) {
   };
 }
 
-// Monto (con lo que falta ya puesto) y fecha de un cobro.
-export function FormCobro({ venta, accion, boton, monto = 'Cobro', secundario = false }) {
-  return (
-    <Formulario accion={accion} className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
-      <label className="col-span-2 text-sm">
-        <span className="mb-1 block text-xs text-tenue">{monto}</span>
-        <input name="monto" inputMode="decimal" defaultValue={Math.max(0, Math.round(venta.saldo)) || ''} className="entrada" />
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs text-tenue">Fecha</span>
-        <input name="fecha" type="date" defaultValue={hoy()} required className="entrada" />
-      </label>
-      <input type="hidden" name="medio" value={venta.medio_pago ?? ''} />
-      <Enviar className={`btn min-h-11 ${secundario ? 'btn-outline border-linea' : 'btn-primary'}`}>{boton}</Enviar>
-    </Formulario>
-  );
+// Lo que necesita el formulario de cobro o entrega (solo datos simples).
+export function paraCobrar(v) {
+  return { id: v.id, saldo: v.saldo, medio_pago: v.medio_pago ?? '', cliente: v.cliente?.nombre ?? null };
 }
 
 // Cuánto se cobró de una venta, como barra.

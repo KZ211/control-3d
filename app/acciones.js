@@ -49,11 +49,12 @@ function listo() {
 
 // Cada acción devuelve { error } en vez de lanzarlo: en producción Next
 // esconde el mensaje de los errores lanzados y el formulario no podría
-// mostrarlo.
+// mostrarlo. Lo que devuelva el trabajo (por ejemplo, cómo deshacerlo) viaja
+// junto al ok.
 async function intentar(trabajo) {
   try {
-    await trabajo();
-    return { ok: true };
+    const extra = await trabajo();
+    return { ok: true, ...extra };
   } catch (e) {
     if (String(e?.digest ?? '').startsWith('NEXT_REDIRECT')) throw e;
     return { error: e?.message ?? 'Algo salió mal.' };
@@ -405,13 +406,31 @@ export async function editarVenta(ventaId, fd) {
   });
 }
 
+// Entregar y cobrar devuelven lo necesario para deshacerlos desde el aviso.
 export async function entregar(ventaId, fd) {
   return intentar(async () => {
     const db = await conSesion();
     const fecha = texto(fd, 'fecha') ?? undefined;
-    revisar(await db.from('ventas').update({ estado: 'entregada', fecha }).eq('id', ventaId));
     const monto = numero(fd, 'monto');
-    if (monto) revisar(await db.from('cobros').insert({ venta_id: ventaId, fecha, monto, medio: texto(fd, 'medio') }));
+    const { data: antes, error } = await db.from('ventas').select('fecha').eq('id', ventaId).single();
+    revisar({ error });
+    revisar(await db.from('ventas').update({ estado: 'entregada', fecha }).eq('id', ventaId));
+    let cobro = null;
+    if (monto) {
+      const { data, error } = await db.from('cobros').insert({ venta_id: ventaId, fecha, monto, medio: texto(fd, 'medio') }).select('id').single();
+      revisar({ error });
+      cobro = data.id;
+    }
+    listo();
+    return { fechaAntes: antes.fecha, cobro };
+  });
+}
+
+export async function deshacerEntrega(ventaId, fechaAntes, cobro) {
+  return intentar(async () => {
+    const db = await conSesion();
+    if (cobro) revisar(await db.from('cobros').delete().eq('id', cobro));
+    revisar(await db.from('ventas').update({ estado: 'encargo', fecha: fechaAntes }).eq('id', ventaId));
     listo();
   });
 }
@@ -419,14 +438,23 @@ export async function entregar(ventaId, fd) {
 export async function cobrar(ventaId, fd) {
   return intentar(async () => {
     const db = await conSesion();
-    revisar(
-      await db.from('cobros').insert({
-        venta_id: ventaId,
-        fecha: texto(fd, 'fecha') ?? undefined,
-        monto: numero(fd, 'monto'),
-        medio: texto(fd, 'medio'),
-      })
-    );
+    const monto = numero(fd, 'monto');
+    if (!monto) throw new Error('Poné cuánto te pagaron.');
+    const { data, error } = await db
+      .from('cobros')
+      .insert({ venta_id: ventaId, fecha: texto(fd, 'fecha') ?? undefined, monto, medio: texto(fd, 'medio') })
+      .select('id')
+      .single();
+    revisar({ error });
+    listo();
+    return { cobro: data.id };
+  });
+}
+
+export async function deshacerCobro(cobro) {
+  return intentar(async () => {
+    const db = await conSesion();
+    revisar(await db.from('cobros').delete().eq('id', cobro));
     listo();
   });
 }

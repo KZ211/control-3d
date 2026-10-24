@@ -4,7 +4,9 @@ import { useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 // Formulario que llama a una acción del servidor, muestra su error y se
-// vacía cuando sale bien. `confirmar` pide confirmación antes de enviar.
+// vacía cuando sale bien. `confirmar` pide confirmación antes de enviar: un
+// texto fijo, o una función que mira el formulario y devuelve el texto (o nada).
+// `alTerminar` recibe lo que devolvió la acción.
 export function Formulario({ accion, children, className = '', confirmar, alTerminar, limpiar = true, claseError = 'mt-3 basis-full px-1 pb-2', onKeyDown }) {
   const ref = useRef(null);
   const [error, setError] = useState(null);
@@ -15,7 +17,8 @@ export function Formulario({ accion, children, className = '', confirmar, alTerm
       className={className}
       onKeyDown={onKeyDown}
       onSubmit={(e) => {
-        if (confirmar && !window.confirm(confirmar)) e.preventDefault();
+        const pregunta = typeof confirmar === 'function' ? confirmar(e.currentTarget) : confirmar;
+        if (pregunta && !window.confirm(pregunta)) e.preventDefault();
       }}
       action={async (fd) => {
         setError(null);
@@ -25,7 +28,7 @@ export function Formulario({ accion, children, className = '', confirmar, alTerm
           return;
         }
         if (limpiar) ref.current?.reset();
-        alTerminar?.();
+        alTerminar?.(r);
       }}
     >
       {children}
