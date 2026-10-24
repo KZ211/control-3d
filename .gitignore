@@ -1,9 +1,40 @@
+# Dependencias
 /node_modules
+
+# Next.js
 /.next/
 /out/
-.DS_Store
+next-env.d.ts
+*.tsbuildinfo
+
+# Variables de entorno y claves: nunca al repo (sí el .env.example)
+.env
+.env.*
+!.env.example
 *.pem
-npm-debug.log*
-.env*.local
+*.key
+
+# Supabase local
+/supabase/.temp/
+/supabase/.branches/
+
+# Vercel
 .vercel
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Pruebas con el navegador
 /.playwright-mcp/
+/coverage/
