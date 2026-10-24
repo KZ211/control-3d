@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { costoPorGramo } from '@/lib/calculos';
 import { leerNumero } from '@/lib/formato';
+import { normalizar } from '@/lib/nombres';
 
 // Lectura de formularios: vacío es null, los números aceptan coma decimal.
 const texto = (fd, k) => {
@@ -27,8 +28,19 @@ async function conSesion() {
   return supabase;
 }
 
+// Los errores de la base vienen en inglés y técnicos: se muestran en palabras
+// simples y el original queda en el registro del servidor.
+function explicar(error) {
+  console.error(error);
+  const m = String(error?.message ?? '');
+  if (/fetch|network|timeout|ECONN|ENOTFOUND/i.test(m)) return 'no se pudo conectar con la base de datos; revisá internet';
+  if (/jwt|auth|session|permission|row-level security/i.test(m)) return 'se cerró tu sesión; volvé a entrar';
+  if (/violates|constraint|invalid input/i.test(m)) return 'la base de datos rechazó algún dato';
+  return 'la base de datos no respondió bien';
+}
+
 function revisar({ error }) {
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(explicar(error));
 }
 
 function listo() {
@@ -195,23 +207,45 @@ export async function pagarCuota(compraId, fd) {
 
 // Clientes y productos
 
-// Para buscar por nombre exacto con ilike, sin que % o _ hagan de comodín.
-const literal = (s) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
-
 function nombreRepetido(error, que) {
   if (error?.code === '23505') throw new Error(`Ya existe ${que} con ese nombre.`);
   revisar({ error });
 }
 
-// Devuelve el id del cliente con ese nombre y lo crea si no existe.
-async function clientePorNombre(db, nombre) {
-  if (!nombre) return null;
-  const { data, error } = await db.from('clientes').select('id').ilike('nombre', literal(nombre)).limit(1);
+// Devuelve el id del cliente con ese nombre y lo crea si no existe. "Lucía
+// Prima" y "lucia  prima" son el mismo: no importan tildes, mayúsculas ni espacios.
+async function buscarOCrearCliente(db, nombre) {
+  if (!nombre) return { id: null, creado: false };
+  const { data, error } = await db.from('clientes').select('id, nombre');
   revisar({ error });
-  if (data.length) return data[0].id;
-  const nuevo = await db.from('clientes').insert({ nombre }).select('id').single();
+  const buscado = normalizar(nombre);
+  const hay = data.find((c) => normalizar(c.nombre) === buscado);
+  if (hay) return { id: hay.id, creado: false };
+  const nuevo = await db.from('clientes').insert({ nombre: nombre.replace(/\s+/g, ' ') }).select('id').single();
   revisar(nuevo);
-  return nuevo.data.id;
+  return { id: nuevo.data.id, creado: true };
+}
+
+const clientePorNombre = async (db, nombre) => (await buscarOCrearCliente(db, nombre)).id;
+
+// Junta dos clientes que son la misma persona: las ventas de `origen` pasan a
+// `destino`, se completan los datos que le falten y `origen` se borra.
+export async function unirClientes(origen, fd) {
+  return intentar(async () => {
+    const destino = texto(fd, 'destino');
+    if (!destino || destino === origen) throw new Error('Elegí con qué cliente unirlo.');
+    const db = await conSesion();
+    const { data, error } = await db.from('clientes').select('id, contacto, notas').in('id', [origen, destino]);
+    revisar({ error });
+    const de = data.find((c) => c.id === origen);
+    const a = data.find((c) => c.id === destino);
+    if (!de || !a) throw new Error('No se encontró uno de los dos clientes.');
+    revisar(await db.from('ventas').update({ cliente_id: destino }).eq('cliente_id', origen));
+    const notas = [a.notas, de.notas].filter(Boolean).join(' · ') || null;
+    revisar(await db.from('clientes').update({ contacto: a.contacto ?? de.contacto, notas }).eq('id', destino));
+    revisar(await db.from('clientes').delete().eq('id', origen));
+    listo();
+  });
 }
 
 export async function crearCliente(fd) {
@@ -276,8 +310,10 @@ function renglones(fd, costoGramo) {
   const cantidades = columna('item_cantidad');
   const gramos = columna('item_gramos');
   const precios = columna('item_precio');
+  const ids = columna('item_id');
   return descripciones
     .map((descripcion, i) => ({
+      id: ids[i] || null,
       descripcion,
       producto_id: productos[i] || null,
       cantidad: aNumero(cantidades[i]) ?? 1,
@@ -288,78 +324,86 @@ function renglones(fd, costoGramo) {
     .filter((r) => r.descripcion);
 }
 
+// Todo o nada: si falla cualquier paso, se borra lo que se llegó a guardar
+// (la venta arrastra sus piezas y cobros, y el cliente si se creó recién).
 export async function crearVenta(fd) {
   return intentar(async () => {
     const db = await conSesion();
     const items = renglones(fd, await costoGramoDeAjustes(db));
-    if (!items.length) throw new Error('Agregá al menos una pieza a la venta.');
+    if (!items.length) throw new Error('Escribí qué vendiste en al menos una pieza.');
+    // Los números se leen antes de guardar nada, así un monto mal escrito no deja la venta a medias.
     const fecha = texto(fd, 'fecha') ?? undefined;
-    const { data: venta, error } = await db
-      .from('ventas')
-      .insert({
-        fecha,
-        cliente_id: await clientePorNombre(db, texto(fd, 'cliente')),
-        estado: texto(fd, 'estado') === 'encargo' ? 'encargo' : 'entregada',
-        gastos: numero(fd, 'gastos') ?? 0,
-        medio_pago: texto(fd, 'medio_pago'),
-        notas: texto(fd, 'notas'),
-      })
-      .select()
-      .single();
-    revisar({ error });
-
-    const guardados = await db.from('venta_items').insert(items.map((r) => ({ ...r, venta_id: venta.id })));
-    if (guardados.error) {
-      await db.from('ventas').delete().eq('id', venta.id);
-      revisar(guardados);
-    }
-
+    const gastos = numero(fd, 'gastos') ?? 0;
     const total = items.reduce((s, r) => s + r.precio, 0);
     const cobrado = fd.get('pago_todo') ? total : numero(fd, 'cobrado');
-    if (cobrado) {
-      revisar(await db.from('cobros').insert({ venta_id: venta.id, fecha, monto: cobrado, medio: texto(fd, 'medio_pago') }));
+    const medio = texto(fd, 'medio_pago');
+
+    const cliente = await buscarOCrearCliente(db, texto(fd, 'cliente'));
+    let ventaId = null;
+    try {
+      const { data: venta, error } = await db
+        .from('ventas')
+        .insert({
+          fecha,
+          cliente_id: cliente.id,
+          estado: texto(fd, 'estado') === 'encargo' ? 'encargo' : 'entregada',
+          gastos,
+          medio_pago: medio,
+          notas: texto(fd, 'notas'),
+        })
+        .select('id')
+        .single();
+      revisar({ error });
+      ventaId = venta.id;
+      revisar(await db.from('venta_items').insert(items.map(({ id, ...r }) => ({ ...r, venta_id: ventaId }))));
+      if (cobrado) revisar(await db.from('cobros').insert({ venta_id: ventaId, fecha, monto: cobrado, medio }));
+    } catch (e) {
+      if (ventaId) await db.from('ventas').delete().eq('id', ventaId);
+      if (cliente.creado) await db.from('clientes').delete().eq('id', cliente.id);
+      throw new Error(`No se guardó nada: ${String(e.message).replace(/\.$/, '')}. Probá de nuevo.`);
     }
     listo();
   });
 }
 
+// Edita una venta con el mismo formulario de la carga rápida: los datos de la
+// venta y sus piezas. Las piezas que ya estaban conservan su precio por gramo
+// (y las impresiones asignadas); las nuevas toman el de Ajustes.
 export async function editarVenta(ventaId, fd) {
   return intentar(async () => {
     const db = await conSesion();
+    const items = renglones(fd, await costoGramoDeAjustes(db));
+    if (!items.length) throw new Error('Una venta necesita al menos una pieza. Si querés sacarla entera, borrala.');
+    const gastos = numero(fd, 'gastos') ?? 0;
+    const diferencia = numero(fd, 'cobrar_diferencia');
+    const estado = texto(fd, 'estado');
     revisar(
       await db
         .from('ventas')
         .update({
           fecha: texto(fd, 'fecha') ?? undefined,
           cliente_id: await clientePorNombre(db, texto(fd, 'cliente')),
-          gastos: numero(fd, 'gastos') ?? 0,
+          ...(['entregada', 'encargo'].includes(estado) && { estado }),
+          gastos,
           notas: texto(fd, 'notas'),
         })
         .eq('id', ventaId)
     );
+    const { data: antes, error } = await db.from('venta_items').select('id').eq('venta_id', ventaId);
+    revisar({ error });
+    const quedan = new Set(items.map((r) => r.id).filter(Boolean));
+    const sacar = antes.map((r) => r.id).filter((id) => !quedan.has(id));
+    if (sacar.length) revisar(await db.from('venta_items').delete().in('id', sacar));
+    for (const { id, costo_gramo, ...r } of items) {
+      if (id) revisar(await db.from('venta_items').update(r).eq('id', id).eq('venta_id', ventaId));
+      else revisar(await db.from('venta_items').insert({ ...r, costo_gramo, venta_id: ventaId }));
+    }
+    // Lo que faltaba cobrar después de cambiar los precios, si marcaste que ya lo cobraste.
+    if (diferencia > 0) revisar(await db.from('cobros').insert({ venta_id: ventaId, monto: diferencia, medio: texto(fd, 'medio_pago') }));
     listo();
   });
 }
 
-export async function editarItem(itemId, fd) {
-  return intentar(async () => {
-    const db = await conSesion();
-    revisar(
-      await db
-        .from('venta_items')
-        .update({
-          cantidad: numero(fd, 'cantidad') ?? 1,
-          gramos_unidad: numero(fd, 'gramos_unidad') ?? 0,
-          precio: numero(fd, 'precio') ?? 0,
-        })
-        .eq('id', itemId)
-    );
-    listo();
-  });
-}
-
-// Un encargo pasa a venta entregada: la fecha pasa a ser la de entrega y, si
-// pagó el resto, se registra el cobro.
 export async function entregar(ventaId, fd) {
   return intentar(async () => {
     const db = await conSesion();
