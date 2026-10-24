@@ -11,6 +11,10 @@
   --gana: 22 120 70;
   --pierde: 178 40 40;
   --acento: 214 84 26;
+  --serie-1: 214 84 26;
+  --serie-2: 202 138 4;
+  --serie-3: 120 113 101;
+  --serie-4: 178 40 40;
   color-scheme: light;
 }
 
@@ -19,13 +23,22 @@
     --papel: 22 21 19;
     --hoja: 32 31 28;
     --tinta: 238 235 228;
-    --tenue: 160 155 145;
+    --tenue: 168 163 153;
     --linea: 58 56 51;
     --gana: 92 196 138;
     --pierde: 240 112 104;
     --acento: 240 132 70;
+    --serie-1: 240 132 70;
+    --serie-2: 234 179 8;
+    --serie-3: 150 143 131;
+    --serie-4: 240 112 104;
     color-scheme: dark;
   }
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
@@ -36,26 +49,38 @@ body {
 
 @layer components {
   .entrada {
-    @apply block min-h-11 w-full border border-linea bg-hoja px-3 text-base text-tinta outline-none focus:border-tinta;
+    @apply block min-h-11 w-full rounded-btn border border-linea bg-hoja px-3 text-base text-tinta outline-none transition-colors placeholder:text-tenue focus:border-primary;
   }
   .boton {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 bg-tinta px-4 font-semibold text-papel transition-opacity hover:opacity-85 disabled:opacity-50;
+    @apply btn btn-neutral min-h-11 font-semibold;
   }
   .boton-suave {
-    @apply inline-flex min-h-9 items-center justify-center border border-linea px-3 text-sm font-medium hover:border-tinta;
+    @apply btn btn-outline btn-sm min-h-11 whitespace-nowrap border-linea font-medium normal-case text-tinta hover:border-tinta hover:bg-transparent hover:text-tinta;
+  }
+  .tarjeta {
+    @apply rounded-box border border-linea bg-hoja;
+  }
+  .rotulo {
+    @apply text-xs font-semibold uppercase tracking-wide text-tenue;
   }
   .tabla {
     @apply w-full border-collapse text-sm;
   }
   .tabla th {
-    @apply border-b border-linea px-3 py-2 text-left font-medium text-tenue;
+    @apply sticky top-0 z-[1] border-b border-linea bg-hoja px-3 py-2 text-left font-medium text-tenue;
   }
   .tabla td {
-    @apply border-b border-linea px-3 py-2 align-top;
+    @apply border-b border-linea px-3 py-2 align-middle;
+  }
+  .tabla tbody tr:last-child td {
+    @apply border-b-0;
   }
   .num,
   .tabla th.num {
     @apply text-right;
+  }
+  .tabla td.num {
+    @apply whitespace-nowrap;
   }
 }
 
@@ -81,7 +106,41 @@ body {
   }
 }
 
+/* Las barras de los gráficos crecen al aparecer. */
+.crece-x {
+  transform-origin: left;
+  animation: crece-x 0.5s ease-out both;
+}
+.crece-y {
+  transform-origin: bottom;
+  animation: crece-y 0.5s ease-out both;
+}
+@keyframes crece-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes crece-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crece-x,
+  .crece-y {
+    animation: none;
+  }
+}
+
 :focus-visible {
   outline: 2px solid rgb(var(--acento));
   outline-offset: 2px;
+}
+
+/* Listas que se deslizan de costado (pestañas) sin mostrar la barra. */
+.sin-barra {
+  scrollbar-width: none;
+}
+.sin-barra::-webkit-scrollbar {
+  display: none;
 }
