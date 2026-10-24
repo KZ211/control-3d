@@ -5,7 +5,7 @@ import { Formulario, Enviar } from './formulario';
 import Icono from './iconos';
 import { crearVenta, editarVenta } from '@/app/acciones';
 import { precioSugerido } from '@/lib/calculos';
-import { plata, num, leerNumero } from '@/lib/formato';
+import { plata, plataFina, num, leerNumero } from '@/lib/formato';
 import { buscarClientes } from '@/lib/nombres';
 import Monto, { conPuntos } from './monto';
 
@@ -112,6 +112,7 @@ export default function VentaRapida({
   const [buscar, setBuscar] = useState('');
   const [guardada, setGuardada] = useState(null);
   const [retomada, setRetomada] = useState(false);
+  const [verCuenta, setVerCuenta] = useState(false);
   const uid = useId();
   const cuerpo = useRef(null);
   const restaurado = useRef(false);
@@ -246,6 +247,8 @@ export default function VentaRapida({
   const total = calculo.reduce((s, c) => s + c.total, 0);
   const costo = calculo.reduce((s, c) => s + c.costo, 0);
   const ganancia = total - aNumero(gastos) - costo;
+  // Con impresiones cargadas el costo ya trae la luz y el desgaste.
+  const conImpresiones = lineas.some((l) => l.costoUnidad != null);
   const listas = lineas.filter((l) => l.descripcion.trim()).length;
   // Entregada y sin precio es un regalo: no se registra ningún cobro.
   const sinPrecio = listas > 0 && total === 0 && estado === 'entregada';
@@ -564,7 +567,17 @@ export default function VentaRapida({
                     </div>
                     {sug > 0 && (
                       <div className="mt-2 text-xs">
-                        <p className="text-tenue">Filamento {plata(aNumero(l.gramos) * costoGramo)} c/u · tocá un precio para usarlo</p>
+                        {/* La cuenta de la planilla, con los números de esta pieza. */}
+                        <details className="text-tenue">
+                          <summary className="cursor-pointer select-none py-1 underline-offset-2 hover:underline">
+                            Filamento {plata(aNumero(l.gramos) * costoGramo)} c/u · ¿de dónde salen estos precios?
+                          </summary>
+                          <p className="mt-1 max-w-prose leading-relaxed">
+                            {num(aNumero(l.gramos))} g × {plataFina(costoGramo)} el gramo = {plata(aNumero(l.gramos) * costoGramo)} de filamento por unidad. El sugerido
+                            lo multiplica por {num(multiplicador)} para cubrir la luz, el desgaste, las piezas que salen mal y tu tiempo; el de por mayor, por{' '}
+                            {num(multiplicadorMayor)}. Los multiplicadores se cambian en Ajustes.
+                          </p>
+                        </details>
                         <div className="mt-1 flex gap-1.5">
                           {[
                             ['Sugerido', sug, multiplicador],
@@ -787,7 +800,27 @@ export default function VentaRapida({
           <p className="min-w-0 leading-tight">
             <span className="block text-xl font-bold sm:text-2xl">{plata(total)}</span>
             <span className="block truncate text-xs font-medium">{resumen}</span>
-            {detalleGanancia && <span className={`block truncate text-xs ${pierde ? 'font-semibold text-warning' : 'text-tenue'}`}>{detalleGanancia}</span>}
+            {detalleGanancia && (
+              <span className={`flex items-center gap-1 text-xs ${pierde ? 'font-semibold text-warning' : 'text-tenue'}`}>
+                <span className="truncate">{detalleGanancia}</span>
+                <button
+                  type="button"
+                  onClick={() => setVerCuenta((v) => !v)}
+                  aria-expanded={verCuenta}
+                  className="relative shrink-0 underline underline-offset-2 after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:text-tinta"
+                  aria-label="Ver la cuenta de lo que te queda"
+                >
+                  ¿cómo?
+                </button>
+              </span>
+            )}
+            {verCuenta && detalleGanancia && (
+              <span className="block text-xs text-tenue">
+                {plata(total)} − {conImpresiones ? 'costo de impresión' : 'filamento'} {plata(costo)}
+                {aNumero(gastos) > 0 && <> − envío {plata(aNumero(gastos))}</>} = {plata(ganancia)}.
+                {!conImpresiones && ' No cuenta luz ni desgaste: se suman cuando cargás la impresión en Taller.'}
+              </span>
+            )}
           </p>
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-tenue lg:inline">
