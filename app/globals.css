@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --papel: 244 242 236;
+  --hoja: 255 255 255;
+  --tinta: 28 27 25;
+  --tenue: 104 100 92;
+  --linea: 221 217 207;
+  --gana: 22 120 70;
+  --pierde: 178 40 40;
+  --acento: 214 84 26;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --papel: 22 21 19;
+    --hoja: 32 31 28;
+    --tinta: 238 235 228;
+    --tenue: 160 155 145;
+    --linea: 58 56 51;
+    --gana: 92 196 138;
+    --pierde: 240 112 104;
+    --acento: 240 132 70;
+    color-scheme: dark;
+  }
+}
+
+body {
+  background: rgb(var(--papel));
+  color: rgb(var(--tinta));
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  .entrada {
+    @apply block min-h-11 w-full border border-linea bg-hoja px-3 text-base text-tinta outline-none focus:border-tinta;
+  }
+  .boton {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 bg-tinta px-4 font-semibold text-papel transition-opacity hover:opacity-85 disabled:opacity-50;
+  }
+  .boton-suave {
+    @apply inline-flex min-h-9 items-center justify-center border border-linea px-3 text-sm font-medium hover:border-tinta;
+  }
+  .tabla {
+    @apply w-full border-collapse text-sm;
+  }
+  .tabla th {
+    @apply border-b border-linea px-3 py-2 text-left font-medium text-tenue;
+  }
+  .tabla td {
+    @apply border-b border-linea px-3 py-2 align-top;
+  }
+  .num,
+  .tabla th.num {
+    @apply text-right;
+  }
+}
+
+/* Barra fina arriba mientras carga una pantalla. */
+.barra-carga {
+  transform-origin: left;
+  animation: barra-carga 1.6s ease-out forwards;
+}
+
+@keyframes barra-carga {
+  from {
+    transform: scaleX(0.05);
+  }
+  to {
+    transform: scaleX(0.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barra-carga {
+    animation: none;
+    transform: scaleX(0.6);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--acento));
+  outline-offset: 2px;
+}
