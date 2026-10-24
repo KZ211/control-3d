@@ -7,15 +7,13 @@ import { crearVenta, editarVenta } from '@/app/acciones';
 import { precioSugerido } from '@/lib/calculos';
 import { plata, num, leerNumero } from '@/lib/formato';
 import { buscarClientes } from '@/lib/nombres';
+import Monto, { conPuntos } from './monto';
 
 const aNumero = (v) => leerNumero(v) || 0;
 const redondear = (v) => Math.round(v / 100) * 100;
 const MEDIOS = ['Transferencia', 'Efectivo', 'Mercado Pago', 'Otro'];
 const RECIENTES = 6;
 const BORRADOR = 'venta:borrador';
-// El precio se muestra con puntos de miles ("3.500"), que leerNumero entiende.
-const miles = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
-const conPuntos = (v) => miles.format(v);
 
 function ayer(hoy) {
   const d = new Date(`${hoy}T12:00:00`);
@@ -106,7 +104,8 @@ export default function VentaRapida({
   const [estado, setEstado] = useState(edicion?.estado ?? 'entregada');
   const [cobro, setCobro] = useState('todo');
   const [cobrado, setCobrado] = useState('');
-  const [medio, setMedio] = useState(edicion?.medio || 'Transferencia');
+  // Al editar no se inventa un medio: queda el que tenía la venta, o ninguno.
+  const [medio, setMedio] = useState(edicion ? (edicion.medio ?? '') : 'Transferencia');
   const [gastos, setGastos] = useState(edicion?.gastos ? String(edicion.gastos) : '');
   const [notas, setNotas] = useState(edicion?.notas ?? '');
   const [diferencia, setDiferencia] = useState(false);
@@ -180,6 +179,14 @@ export default function VentaRapida({
     } catch {}
     if (borrador) restaurar();
   }, []);
+  // Si seguís la misma venta en otra pestaña del navegador, esta se pone al día
+  // en vez de pisarla con lo que tenía.
+  useEffect(() => {
+    if (!borrador) return;
+    const otra = (e) => e.key === BORRADOR && restaurar();
+    window.addEventListener('storage', otra);
+    return () => window.removeEventListener('storage', otra);
+  });
   // En la pestaña Nueva solo se enfoca con mouse y teclado: en el celular
   // abriría el teclado apenas entrás. La ventana relee el borrador al abrirse,
   // por si lo seguiste en la pestaña Nueva.
@@ -241,6 +248,7 @@ export default function VentaRapida({
   const costo = calculo.reduce((s, c) => s + c.costo, 0);
   const ganancia = total - aNumero(gastos) - costo;
   const listas = lineas.filter((l) => l.descripcion.trim()).length;
+  // Entregada y sin precio es un regalo: no se registra ningún cobro.
   const sinPrecio = listas > 0 && total === 0 && estado === 'entregada';
   const pierde = total > 0 && ganancia < 0;
 
@@ -249,14 +257,14 @@ export default function VentaRapida({
   const falta = Math.max(0, total - previo);
   const pagado = edicion ? previo + (diferencia ? falta : 0) : cobro === 'todo' ? total : cobro === 'parte' ? Math.min(aNumero(cobrado), total || Infinity) : 0;
   const debe = Math.max(0, total - pagado);
-  const pideMedio = edicion ? diferencia && falta > 0 : cobro !== 'nada';
+  const pideMedio = edicion ? previo > 0 || (diferencia && falta > 0) : cobro !== 'nada' && !sinPrecio;
 
   // Enter pasa al campo siguiente en vez de guardar; Ctrl o ⌘ + Enter guarda.
   const teclas = (e) => {
     if (e.key !== 'Enter' || e.defaultPrevented || e.target.tagName !== 'INPUT') return;
     e.preventDefault();
     if (e.metaKey || e.ctrlKey) {
-      if (listas > 0) e.currentTarget.requestSubmit();
+      if (puedeGuardar) e.currentTarget.requestSubmit();
       return;
     }
     const campos = [...e.currentTarget.querySelectorAll('input:not([type=hidden]):not([disabled]):not([type=checkbox])')];
@@ -267,6 +275,10 @@ export default function VentaRapida({
   const encontrados = (filtro ? productos.filter((p) => p.nombre.toLowerCase().includes(filtro)) : productos).slice(0, 8);
   const { exacto, sugeridos } = buscarClientes(cliente, clientes);
   const escrito = cliente.trim();
+  // Con un nombre parecido a otro cliente hay que elegir: es ese, o es uno nuevo.
+  const [nuevoConfirmado, setNuevoConfirmado] = useState('');
+  const dudaCliente = Boolean(escrito) && !exacto && sugeridos.length > 0 && nuevoConfirmado !== escrito;
+  const puedeGuardar = listas > 0 && !dudaCliente;
 
   const empezarDeCero = () => {
     setLineas([nueva()]);
@@ -297,7 +309,8 @@ export default function VentaRapida({
   // El resumen de abajo cuenta lo que importa según cómo quedó la venta.
   let resumen;
   if (listas === 0) resumen = 'Escribí qué vendiste para guardar';
-  else if (!total) resumen = `${listas} pieza${listas === 1 ? '' : 's'} · sin precio`;
+  else if (dudaCliente) resumen = `Elegí si «${escrito}» es un cliente que ya tenés`;
+  else if (!total) resumen = sinPrecio ? `Regalo · ${listas} pieza${listas === 1 ? '' : 's'}` : `${listas} pieza${listas === 1 ? '' : 's'} · sin precio todavía`;
   else if (estado === 'encargo')
     resumen = !debe ? 'Encargo · ya pagó todo' : pagado ? `Encargo · seña ${plata(pagado)} · falta ${plata(debe)}` : `Encargo · falta cobrar ${plata(debe)}`;
   else if (debe > 0) resumen = `Te va a deber ${plata(debe)}`;
@@ -337,7 +350,9 @@ export default function VentaRapida({
             ? ''
             : exacto
               ? `${exacto.nombre}, ya es cliente`
-              : `${sugeridos.length ? `${sugeridos.length} ${sugeridos.length === 1 ? 'parecido' : 'parecidos'}. ` : ''}Se crea como cliente nuevo`}
+              : sugeridos.length
+                ? `${sugeridos.length} ${sugeridos.length === 1 ? 'cliente parecido' : 'clientes parecidos'}: elegí si es uno de ellos o uno nuevo`
+                : 'Se crea como cliente nuevo'}
         </p>
         <div id={`${uid}-cliente-estado`} className="mt-2">
           {!escrito ? (
@@ -360,9 +375,9 @@ export default function VentaRapida({
             </p>
           ) : (
             <>
-              {sugeridos.length > 0 && (
-                <>
-                  <p className="text-sm">¿Es alguno de estos?</p>
+              {sugeridos.length > 0 ? (
+                <div className={`rounded-box p-3 ${dudaCliente ? 'bg-warning/10' : 'bg-papel'}`}>
+                  <p className="text-sm font-medium">{sugeridos.length === 1 ? `¿Es ${sugeridos[0].nombre}?` : '¿Es alguno de estos?'}</p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {sugeridos.map((c) => (
                       <button
@@ -371,15 +386,22 @@ export default function VentaRapida({
                         onClick={() => setCliente(c.nombre)}
                         className="btn btn-ghost btn-sm min-h-11 rounded-full border border-linea bg-hoja font-normal"
                       >
-                        {c.nombre}
+                        {sugeridos.length === 1 ? `Sí, ${c.nombre}` : c.nombre}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      aria-pressed={!dudaCliente}
+                      onClick={() => setNuevoConfirmado(escrito)}
+                      className={`btn btn-ghost btn-sm min-h-11 rounded-full border ${marcado(!dudaCliente)}`}
+                    >
+                      No, crear «{escrito}»
+                    </button>
                   </div>
-                </>
+                </div>
+              ) : (
+                <p className="mt-1.5 text-sm text-tenue">Se crea «{escrito}» como cliente nuevo.</p>
               )}
-              <p className="mt-1.5 text-sm text-tenue">
-                {sugeridos.length > 0 ? 'Si no, se crea' : 'Se crea'} «{escrito}» como cliente nuevo.
-              </p>
             </>
           )}
         </div>
@@ -530,24 +552,7 @@ export default function VentaRapida({
                       </label>
                       <label className="w-28">
                         <span className="mb-1 block text-xs text-tenue">Precio c/u</span>
-                        <span className="relative block">
-                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-tenue" aria-hidden="true">
-                            $
-                          </span>
-                          <input
-                            inputMode="decimal"
-                            value={l.unitario}
-                            onChange={(e) =>
-                              cambiar(l.k, {
-                                unitario: e.target.value,
-                                auto: false,
-                              })
-                            }
-                            onBlur={() => precio > 0 && cambiar(l.k, { unitario: conPuntos(precio) })}
-                            placeholder="0"
-                            className="entrada bg-hoja pl-7"
-                          />
-                        </span>
+                        <Monto value={l.unitario} alCambiar={(v) => cambiar(l.k, { unitario: v, auto: false })} />
                       </label>
                       <p className="ml-auto pb-2.5 text-right">
                         <span className="block text-xs text-tenue">Total</span>
@@ -703,31 +708,33 @@ export default function VentaRapida({
                 <p className="text-xs text-tenue">Los cobros anteriores se ven y se borran desde el detalle.</p>
               </div>
             ) : (
-              <>
-                <Opciones
-                  nombre="¿Cuánto pagó?"
-                  valor={cobro}
-                  alCambiar={setCobro}
-                  opciones={[
-                    ['todo', 'Pagó todo'],
-                    ['parte', estado === 'encargo' ? 'Dejó seña' : 'Una parte'],
-                    ['nada', 'No pagó'],
-                  ]}
-                />
-                {cobro === 'todo' && <input type="hidden" name="pago_todo" value="on" />}
-                {cobro === 'parte' && (
-                  <label className="block text-sm">
-                    <span className="flex items-center gap-2">
-                      <span className="shrink-0">{estado === 'encargo' ? 'Seña' : 'Cobré'}</span>
-                      <input name="cobrado" inputMode="decimal" value={cobrado} onChange={(e) => setCobrado(e.target.value)} placeholder="0" className="entrada" />
-                      {total > 0 && <span className="shrink-0 text-tenue">de {plata(total)}</span>}
-                    </span>
-                    {total > 0 && aNumero(cobrado) > 0 && aNumero(cobrado) < total && (
-                      <span className="mt-1 block text-xs text-tenue">Te van a quedar debiendo {plata(total - aNumero(cobrado))}.</span>
-                    )}
-                  </label>
-                )}
-              </>
+              !sinPrecio && (
+                <>
+                  <Opciones
+                    nombre="¿Cuánto pagó?"
+                    valor={cobro}
+                    alCambiar={setCobro}
+                    opciones={[
+                      ['todo', 'Pagó todo'],
+                      ['parte', estado === 'encargo' ? 'Dejó seña' : 'Una parte'],
+                      ['nada', 'No pagó'],
+                    ]}
+                  />
+                  {cobro === 'todo' && <input type="hidden" name="pago_todo" value="on" />}
+                  {cobro === 'parte' && (
+                    <label className="block text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className="shrink-0">{estado === 'encargo' ? 'Seña' : 'Cobré'}</span>
+                        <Monto name="cobrado" value={cobrado} alCambiar={setCobrado} className="flex-1" aria-label={estado === 'encargo' ? 'Seña' : 'Cuánto cobraste'} />
+                        {total > 0 && <span className="shrink-0 text-tenue">de {plata(total)}</span>}
+                      </span>
+                      {total > 0 && aNumero(cobrado) > 0 && aNumero(cobrado) < total && (
+                        <span className="mt-1 block text-xs text-tenue">Te van a quedar debiendo {plata(total - aNumero(cobrado))}.</span>
+                      )}
+                    </label>
+                  )}
+                </>
+              )
             )}
 
             {pideMedio && (
@@ -748,7 +755,7 @@ export default function VentaRapida({
                 </div>
               </fieldset>
             )}
-            <input type="hidden" name="medio_pago" value={medio} />
+            {medio && <input type="hidden" name="medio_pago" value={medio} />}
 
             <details className="text-sm" open={Boolean(edicion?.gastos || edicion?.notas)}>
               <summary className="flex min-h-11 cursor-pointer select-none items-center gap-1.5 font-medium">
@@ -758,7 +765,7 @@ export default function VentaRapida({
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <label>
                   <span className="mb-1 block text-xs text-tenue">Envío o comisión que pagás vos</span>
-                  <input name="gastos" inputMode="decimal" value={gastos} onChange={(e) => setGastos(e.target.value)} placeholder="0" className="entrada" />
+                  <Monto name="gastos" value={gastos} alCambiar={setGastos} />
                 </label>
                 <label>
                   <span className="mb-1 block text-xs text-tenue">Notas</span>
@@ -773,7 +780,8 @@ export default function VentaRapida({
       <footer className="order-last shrink-0 border-t border-linea bg-hoja px-4 py-2 sm:py-3">
         {sinPrecio && (
           <p role="status" className="mb-2 rounded-btn bg-warning/15 px-3 py-2 text-sm">
-            Esta venta no tiene precio. Si fue un regalo, guardala así; si no, poné cuánto cobraste o marcala como encargo.
+            Sin precio se guarda como <strong>regalo</strong>: no suma a lo vendido ni a lo cobrado, y el filamento cuenta como gasto. Si te pagaron, poné el precio; si
+            todavía no sabés cuánto cobrar, marcala como encargo.
           </p>
         )}
         <div className="flex items-center justify-between gap-3">
@@ -786,8 +794,8 @@ export default function VentaRapida({
             <span className="hidden text-xs text-tenue lg:inline">
               <kbd className="kbd kbd-xs">Ctrl</kbd> o <kbd className="kbd kbd-xs">⌘</kbd> + <kbd className="kbd kbd-xs">Enter</kbd>
             </span>
-            <Enviar className={`btn shrink-0 sm:btn-lg sm:min-w-40 ${sinPrecio ? 'btn-warning' : 'btn-primary'}`} deshabilitado={listas === 0}>
-              {edicion ? 'Guardar cambios' : sinPrecio ? 'Guardar sin precio' : 'Guardar venta'}
+            <Enviar className={`btn shrink-0 sm:btn-lg sm:min-w-40 ${sinPrecio ? 'btn-warning' : 'btn-primary'}`} deshabilitado={!puedeGuardar}>
+              {edicion ? 'Guardar cambios' : sinPrecio ? 'Guardar como regalo' : 'Guardar venta'}
             </Enviar>
           </div>
         </div>

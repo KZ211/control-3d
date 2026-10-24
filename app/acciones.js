@@ -384,6 +384,7 @@ export async function editarVenta(ventaId, fd) {
           fecha: texto(fd, 'fecha') ?? undefined,
           cliente_id: await clientePorNombre(db, texto(fd, 'cliente')),
           ...(['entregada', 'encargo'].includes(estado) && { estado }),
+          medio_pago: texto(fd, 'medio_pago'),
           gastos,
           notas: texto(fd, 'notas'),
         })

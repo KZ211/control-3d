@@ -15,11 +15,18 @@ function Detalle({ v, cerrar }) {
   return (
     <PanelDetalle titulo={v.cliente?.nombre ?? 'Sin cliente'} subtitulo={`${fecha(v.fecha)}${v.medio_pago ? ` · ${v.medio_pago}` : ''}`} cerrar={cerrar}>
       <dl className="grid grid-cols-3 gap-2 text-center">
-        {[
-          ['Total', plata(v.total)],
-          ['Ganancia', `${v.estimado ? '≈ ' : ''}${plata(v.ganancia)}`],
-          ['Margen', pct(v.margen)],
-        ].map(([n, valor]) => (
+        {(v.total
+          ? [
+              ['Total', plata(v.total)],
+              ['Ganancia', `${v.estimado ? '≈ ' : ''}${plata(v.ganancia)}`],
+              ['Margen', pct(v.margen)],
+            ]
+          : [
+              ['Total', 'Regalo'],
+              ['Te costó', plata(v.costo + Number(v.gastos || 0))],
+              ['Margen', '—'],
+            ]
+        ).map(([n, valor]) => (
           <div key={n} className="rounded-box bg-papel p-2">
             <dt className="text-[11px] text-tenue">{n}</dt>
             <dd className="font-bold">{valor}</dd>
@@ -124,14 +131,19 @@ export default async function Historial({ searchParams }) {
                   </span>
                 </Enlace>
               </td>
-              <td className="num font-medium">{v.total ? plata(v.total) : <span className="text-xs font-normal text-tenue">sin precio</span>}</td>
-              <td className={`num hidden sm:table-cell ${tonoDe(v.ganancia) === 'pierde' ? 'text-pierde' : ''}`}>
+              <td className="num font-medium">{v.total ? plata(v.total) : <span className="badge badge-ghost badge-sm font-normal">regalo</span>}</td>
+              {/* Un regalo no es una venta a pérdida: su costo se muestra en gris. */}
+              <td className={`num hidden sm:table-cell ${!v.total ? 'text-tenue' : tonoDe(v.ganancia) === 'pierde' ? 'text-pierde' : ''}`}>
                 {v.sinCosto && !v.costo ? <span className="text-tenue">—</span> : `${v.estimado ? '≈ ' : ''}${plata(v.ganancia)}`}
               </td>
-              <td className={`num ${margen}`}>{pct(v.margen)}</td>
+              <td className={`num ${margen}`}>{v.total ? pct(v.margen) : '—'}</td>
               <td className="num hidden md:table-cell">{v.saldo > 0 ? <span className="font-semibold text-pierde">{plata(v.saldo)}</span> : '—'}</td>
               <td className="w-11 !p-0">
-                <Enlace href={enlace({ v: v.id })} aria-label={`Ver la venta de ${v.cliente?.nombre ?? 'sin cliente'}`} className="flex min-h-11 min-w-11 items-center justify-center text-tenue hover:text-tinta">
+                <Enlace
+                  href={enlace({ v: v.id })}
+                  aria-label={`Ver la venta de ${v.cliente?.nombre ?? 'sin cliente'}`}
+                  className="flex min-h-11 min-w-11 items-center justify-center text-tenue hover:text-tinta"
+                >
                   <Icono nombre="siguiente" className="h-4 w-4" />
                 </Enlace>
               </td>
