@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./app/**/*.js', './components/**/*.js'],
+  content: ['./app/**/*.js', './components/**/*.js', './lib/navegacion.js'],
   theme: {
     extend: {
       colors: {
@@ -12,11 +12,84 @@ module.exports = {
         gana: 'rgb(var(--gana) / <alpha-value>)',
         pierde: 'rgb(var(--pierde) / <alpha-value>)',
         acento: 'rgb(var(--acento) / <alpha-value>)',
+        // Series de los gráficos, siempre con etiqueta al lado.
+        serie: {
+          1: 'rgb(var(--serie-1) / <alpha-value>)',
+          2: 'rgb(var(--serie-2) / <alpha-value>)',
+          3: 'rgb(var(--serie-3) / <alpha-value>)',
+          4: 'rgb(var(--serie-4) / <alpha-value>)',
+        },
       },
       fontFamily: {
         sans: ['var(--fuente)', 'system-ui', 'sans-serif'],
       },
     },
   },
-  plugins: [],
+  plugins: [require('daisyui')],
+  // Los mismos colores que los tokens de globals.css, para que los
+  // componentes de daisyUI combinen con el resto.
+  daisyui: {
+    themes: [
+      {
+        claro: {
+          'color-scheme': 'light',
+          primary: '#C2410C',
+          'primary-content': '#FFFFFF',
+          secondary: '#1C1B19',
+          'secondary-content': '#F4F2EC',
+          accent: '#D6541A',
+          'accent-content': '#FFFFFF',
+          neutral: '#1C1B19',
+          'neutral-content': '#F4F2EC',
+          'base-100': '#FFFFFF',
+          'base-200': '#F4F2EC',
+          'base-300': '#DDD9CF',
+          'base-content': '#1C1B19',
+          info: '#1D4ED8',
+          success: '#167846',
+          'success-content': '#FFFFFF',
+          warning: '#B45309',
+          'warning-content': '#FFFFFF',
+          error: '#B22828',
+          'error-content': '#FFFFFF',
+          '--rounded-box': '0.75rem',
+          '--rounded-btn': '0.5rem',
+          '--rounded-badge': '1rem',
+          '--animation-btn': '0.15s',
+          '--tab-radius': '0.5rem',
+        },
+      },
+      {
+        oscuro: {
+          'color-scheme': 'dark',
+          primary: '#F0844A',
+          'primary-content': '#1C1B19',
+          secondary: '#EEEBE4',
+          'secondary-content': '#161513',
+          accent: '#F0844A',
+          'accent-content': '#1C1B19',
+          neutral: '#EEEBE4',
+          'neutral-content': '#161513',
+          'base-100': '#201F1C',
+          'base-200': '#161513',
+          'base-300': '#3A3833',
+          'base-content': '#EEEBE4',
+          info: '#7AA2F7',
+          success: '#5CC48A',
+          'success-content': '#161513',
+          warning: '#E0A458',
+          'warning-content': '#161513',
+          error: '#F07068',
+          'error-content': '#161513',
+          '--rounded-box': '0.75rem',
+          '--rounded-btn': '0.5rem',
+          '--rounded-badge': '1rem',
+          '--animation-btn': '0.15s',
+          '--tab-radius': '0.5rem',
+        },
+      },
+    ],
+    darkTheme: 'oscuro',
+    logs: false,
+  },
 };

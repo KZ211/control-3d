@@ -5,7 +5,7 @@ import { useFormStatus } from 'react-dom';
 
 // Formulario que llama a una acción del servidor, muestra su error y se
 // vacía cuando sale bien. `confirmar` pide confirmación antes de enviar.
-export function Formulario({ accion, children, className = '', confirmar, alTerminar, limpiar = true }) {
+export function Formulario({ accion, children, className = '', confirmar, alTerminar, limpiar = true, claseError = 'mt-3 basis-full px-1 pb-2', onKeyDown }) {
   const ref = useRef(null);
   const [error, setError] = useState(null);
 
@@ -13,6 +13,7 @@ export function Formulario({ accion, children, className = '', confirmar, alTerm
     <form
       ref={ref}
       className={className}
+      onKeyDown={onKeyDown}
       onSubmit={(e) => {
         if (confirmar && !window.confirm(confirmar)) e.preventDefault();
       }}
@@ -29,7 +30,7 @@ export function Formulario({ accion, children, className = '', confirmar, alTerm
     >
       {children}
       {error && (
-        <p role="alert" className="mt-3 basis-full text-sm font-medium text-pierde">
+        <p role="alert" className={`text-sm font-medium text-pierde ${claseError}`}>
           {error}
         </p>
       )}
@@ -37,20 +38,24 @@ export function Formulario({ accion, children, className = '', confirmar, alTerm
   );
 }
 
-export function Enviar({ children, className = 'boton' }) {
+export function Enviar({ children, className = 'boton', deshabilitado = false, etiqueta }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className={className}>
+    <button type="submit" disabled={pending || deshabilitado} className={className} aria-label={etiqueta}>
+      {pending && <span className="loading loading-spinner loading-sm" aria-hidden="true" />}
       {pending ? 'Guardando…' : children}
     </button>
   );
 }
 
 // Un botón suelto que ejecuta una acción (borrar, marcar…).
-export function Accion({ accion, confirmar, children, className = 'boton-suave' }) {
+// `etiqueta` nombra el botón cuando solo tiene un ícono.
+export function Accion({ accion, confirmar, children, className = 'boton-suave', etiqueta }) {
   return (
     <Formulario accion={accion} confirmar={confirmar} limpiar={false} className="inline">
-      <Enviar className={className}>{children}</Enviar>
+      <Enviar className={className} etiqueta={etiqueta}>
+        {children}
+      </Enviar>
     </Formulario>
   );
 }
