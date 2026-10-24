@@ -21,9 +21,8 @@ function ayer(hoy) {
   return d.toISOString().slice(0, 10);
 }
 
-// Lo elegido se marca con un tono, no en negro: así no pesa igual una opción
-// que viene puesta que una que acabás de tocar.
-const marcado = (si) => (si ? 'border-tinta bg-tinta/[0.07] font-semibold text-tinta' : 'border-linea bg-hoja font-normal');
+// Lo elegido se marca sólido, como la pestaña activa: se lee de un vistazo qué quedó puesto.
+const marcado = (si) => (si ? 'border-tinta bg-tinta font-semibold text-papel hover:border-tinta hover:bg-tinta/90' : 'border-linea bg-hoja font-normal');
 
 // Botones que funcionan como un grupo de opciones.
 function Opciones({ nombre, valor, opciones, alCambiar }) {
@@ -37,7 +36,7 @@ function Opciones({ nombre, valor, opciones, alCambiar }) {
             type="button"
             aria-pressed={valor === v}
             onClick={() => alCambiar(v)}
-            className={`btn btn-ghost join-item btn-sm min-h-11 flex-1 flex-nowrap gap-1 border ${marcado(valor === v)}`}
+            className={`btn btn-ghost join-item btn-sm min-h-11 flex-1 flex-nowrap gap-1 border px-2 ${marcado(valor === v)}`}
           >
             {valor === v && <Icono nombre="listo" className="h-3.5 w-3.5" />}
             {texto}
@@ -484,7 +483,7 @@ export default function VentaRapida({
                         placeholder="Qué es (ej: Stitch articulado)"
                         required={obligatoria}
                         autoComplete="off"
-                        className="entrada flex-1 bg-hoja font-medium"
+                        className="entrada flex-1 bg-hoja text-lg font-semibold"
                       />
                       {(lineas.length > 1 || !vacia(l)) && (
                         <button
@@ -584,7 +583,7 @@ export default function VentaRapida({
                               className={`btn btn-ghost btn-sm min-h-11 min-w-0 flex-1 flex-nowrap gap-1 whitespace-nowrap rounded-full border px-2.5 text-xs sm:flex-none sm:px-3 sm:text-sm ${marcado(precio === v)}`}
                             >
                               {n} {plata(v)}
-                              <span className="text-tenue">×{num(x)}</span>
+                              <span className={precio === v ? 'text-papel/70' : 'text-tenue'}>×{num(x)}</span>
                             </button>
                           ))}
                         </div>
@@ -605,9 +604,9 @@ export default function VentaRapida({
                   onClick={() => setCatalogo((v) => !v)}
                   aria-expanded={catalogo}
                   aria-controls={`${uid}-catalogo`}
-                  className={`btn btn-ghost min-h-11 border font-medium ${marcado(catalogo)}`}
+                  className={`btn btn-ghost min-h-11 font-medium ${catalogo ? 'bg-papel text-tinta' : 'text-tenue hover:text-tinta'}`}
                 >
-                  <Icono nombre="buscar" className="h-4 w-4" /> Del catálogo
+                  <Icono nombre="buscar" className="h-4 w-4" /> Buscar en el catálogo
                 </button>
               )}
             </div>
