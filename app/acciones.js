@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { costoPorGramo } from '@/lib/calculos';
 import { leerNumero } from '@/lib/formato';
 import { normalizar } from '@/lib/nombres';
+import { limpiarToken, venceToken, pedirTareas, desdeTarea, gramosPorFilamento, fallo } from '@/lib/bambu';
 
 // Lectura de formularios: vacío es null, los números aceptan coma decimal.
 const texto = (fd, k) => {
@@ -34,6 +35,7 @@ function explicar(error) {
   console.error(error);
   const m = String(error?.message ?? '');
   if (/fetch|network|timeout|ECONN|ENOTFOUND/i.test(m)) return 'no se pudo conectar con la base de datos; revisá internet';
+  if (/does not exist|schema cache|could not find the table/i.test(m)) return 'falta correr un SQL nuevo en Supabase (mirá supabase/cambios)';
   if (/jwt|auth|session|permission|row-level security/i.test(m)) return 'se cerró tu sesión; volvé a entrar';
   if (/violates|constraint|invalid input/i.test(m)) return 'la base de datos rechazó algún dato';
   return 'la base de datos no respondió bien';
@@ -519,6 +521,145 @@ export async function asignarItem(impresionId, fd) {
   return intentar(async () => {
     const db = await conSesion();
     revisar(await db.from('impresiones').update({ venta_item_id: texto(fd, 'venta_item_id') }).eq('id', impresionId));
+    listo();
+  });
+}
+
+// Bambu Lab: el historial de impresiones de la nube entra a una bandeja y
+// desde ahí cada una pasa a ser una impresión de la app (o se descarta).
+
+// Guarda las tareas sin pisar lo que ya elegiste para cada una (la decisión no se manda).
+async function guardarTareas(db, tareas) {
+  const { data: antes, error } = await db.from('bambu_impresiones').select('tarea_id');
+  revisar({ error });
+  const ya = new Set(antes.map((f) => String(f.tarea_id)));
+  const filas = tareas.filter((t) => t?.id != null).map(desdeTarea);
+  for (let i = 0; i < filas.length; i += 200) {
+    revisar(await db.from('bambu_impresiones').upsert(filas.slice(i, i + 200), { onConflict: 'user_id,tarea_id' }));
+  }
+  const ahora = new Date().toISOString();
+  revisar(await db.from('bambu_conexion').update({ ultima_vez: ahora }).not('user_id', 'is', null));
+  return { nuevas: filas.filter((f) => !ya.has(String(f.tarea_id))).length, total: filas.length };
+}
+
+export async function conectarBambu(fd) {
+  return intentar(async () => {
+    const token = limpiarToken(fd.get('token'));
+    const region = texto(fd, 'region') === 'china' ? 'china' : 'global';
+    if (!token) throw new Error('Pegá el token de tu cuenta de Bambu Lab.');
+    // Primero se prueba: si Bambu no lo acepta, no se guarda.
+    const tareas = await pedirTareas(token, region);
+    const db = await conSesion();
+    revisar(await db.from('bambu_conexion').upsert({ token, region, vence: venceToken(token) }, { onConflict: 'user_id' }));
+    const r = await guardarTareas(db, tareas);
+    listo();
+    return r;
+  });
+}
+
+export async function traerBambu() {
+  return intentar(async () => {
+    const db = await conSesion();
+    const { data: conexion, error } = await db.from('bambu_conexion').select('token, region').maybeSingle();
+    revisar({ error });
+    if (!conexion) throw new Error('Primero conectá tu cuenta de Bambu Lab en Ajustes.');
+    const r = await guardarTareas(db, await pedirTareas(conexion.token, conexion.region));
+    listo();
+    return r;
+  });
+}
+
+export async function desconectarBambu() {
+  return intentar(async () => {
+    const db = await conSesion();
+    revisar(await db.from('bambu_conexion').delete().not('user_id', 'is', null));
+    listo();
+  });
+}
+
+// El día de la impresión, en hora de Argentina.
+const diaDe = (iso) => (iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) : undefined);
+
+// Clasifica una o varias impresiones de la bandeja. Todo o nada: si algo
+// falla, se borra lo que se llegó a crear y vuelven a quedar pendientes.
+export async function clasificarBambu(fd) {
+  return intentar(async () => {
+    const ids = fd.getAll('id').map(String).filter(Boolean);
+    const decision = texto(fd, 'decision');
+    const ventaItem = texto(fd, 'venta_item_id');
+    if (!ids.length) throw new Error('Elegí al menos una impresión.');
+    if (!['venta', 'stock', 'prueba', 'ignorar'].includes(decision)) throw new Error('Elegí qué hacer con la impresión.');
+    if (decision === 'venta' && !ventaItem) throw new Error('Elegí de qué venta es.');
+    const db = await conSesion();
+    const { data: filas, error } = await db.from('bambu_impresiones').select('*').in('id', ids).eq('decision', 'pendiente');
+    revisar({ error });
+    if (!filas.length) throw new Error('Esas impresiones ya estaban revisadas.');
+
+    if (decision === 'ignorar') {
+      revisar(await db.from('bambu_impresiones').update({ decision }).in('id', filas.map((f) => f.id)));
+      listo();
+      return { ids: filas.map((f) => f.id) };
+    }
+
+    const { data: maquinas, error: errorMaquinas } = await db.from('maquinas').select('id, bambu_id').not('bambu_id', 'is', null);
+    revisar({ error: errorMaquinas });
+    const maquinaDe = Object.fromEntries(maquinas.map((m) => [m.bambu_id, m.id]));
+    const costoGramo = await costoGramoDeAjustes(db);
+    const creadas = [];
+    try {
+      for (const f of filas) {
+        const { data: impresion, error } = await db
+          .from('impresiones')
+          .insert({
+            fecha: diaDe(f.fin ?? f.inicio),
+            pieza: f.titulo || f.diseno || 'Impresión de Bambu Lab',
+            venta_item_id: decision === 'venta' ? ventaItem : null,
+            destino: decision === 'prueba' ? 'prueba' : 'stock',
+            maquina_id: maquinaDe[f.impresora_id] ?? null,
+            horas: Math.round((f.segundos / 3600) * 100) / 100,
+            unidades: 1,
+            fallida: decision === 'prueba' && fallo(f.estado),
+            notas: [f.placa, 'desde Bambu Lab'].filter(Boolean).join(' · '),
+          })
+          .select('id')
+          .single();
+        revisar({ error });
+        creadas.push(impresion.id);
+        // Sin lote elegido: el precio del gramo de Ajustes, como al cargarla a mano sin lote.
+        const gramos = gramosPorFilamento(f);
+        if (gramos.length) revisar(await db.from('impresion_filamentos').insert(gramos.map((g) => ({ impresion_id: impresion.id, gramos: g, costo_gramo: costoGramo }))));
+        revisar(await db.from('bambu_impresiones').update({ decision, impresion_id: impresion.id }).eq('id', f.id));
+      }
+    } catch (e) {
+      if (creadas.length) await db.from('impresiones').delete().in('id', creadas);
+      await db.from('bambu_impresiones').update({ decision: 'pendiente', impresion_id: null }).in('id', filas.map((f) => f.id));
+      throw new Error(`No se guardó nada: ${String(e.message).replace(/\.$/, '')}. Probá de nuevo.`);
+    }
+    listo();
+    return { ids: filas.map((f) => f.id) };
+  });
+}
+
+// Vuelve impresiones de la bandeja a pendientes y borra las que se habían creado.
+export async function deshacerBambu(ids) {
+  return intentar(async () => {
+    const db = await conSesion();
+    const { data: filas, error } = await db.from('bambu_impresiones').select('id, impresion_id').in('id', ids);
+    revisar({ error });
+    const creadas = filas.map((f) => f.impresion_id).filter(Boolean);
+    if (creadas.length) revisar(await db.from('impresiones').delete().in('id', creadas));
+    revisar(await db.from('bambu_impresiones').update({ decision: 'pendiente', impresion_id: null }).in('id', ids));
+    listo();
+  });
+}
+
+// Qué máquina de la app es una impresora de Bambu (por su número de serie).
+export async function vincularMaquina(impresoraId, fd) {
+  return intentar(async () => {
+    const db = await conSesion();
+    const maquina = texto(fd, 'maquina_id');
+    revisar(await db.from('maquinas').update({ bambu_id: null }).eq('bambu_id', impresoraId));
+    if (maquina) revisar(await db.from('maquinas').update({ bambu_id: impresoraId }).eq('id', maquina));
     listo();
   });
 }

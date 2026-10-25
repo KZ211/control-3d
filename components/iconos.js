@@ -60,6 +60,7 @@ const TRAZOS = {
   anterior: <path d="m15 18-6-6 6-6" />,
   siguiente: <path d="m9 18 6-6-6-6" />,
   borrar: <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />,
+  traer: <path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" />,
   regalo: <path d="M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7Zm0 0h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7Z" />,
   mensaje: <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />,
   buscar: (
