@@ -31,7 +31,7 @@ create table if not exists public.bambu_impresiones (
   modelo text,
   estado integer,
   portada text,
-  decision text not null default 'pendiente' check (decision in ('pendiente', 'venta', 'stock', 'prueba', 'ignorar')),
+  decision text not null default 'pendiente' check (decision in ('pendiente', 'venta', 'stock', 'prueba', 'ignorar', 'cargada')),
   impresion_id uuid references public.impresiones (id) on delete set null,
   creado timestamptz not null default now(),
   unique (user_id, tarea_id)

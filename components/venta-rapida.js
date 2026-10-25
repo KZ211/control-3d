@@ -68,6 +68,7 @@ export default function VentaRapida({
   alCambiarSucio,
   borrador = false,
   delDia,
+  combo,
 }) {
   const siguiente = useRef(1);
   // `auto`: el precio sigue al sugerido hasta que lo escribís a mano.
@@ -98,7 +99,18 @@ export default function VentaRapida({
             porGramo: it.costoGramo ? conPuntos(it.costoGramo) : '',
           })
         )
-      : [nueva()]
+      : combo
+        ? [
+            // Una venta armada con varias impresiones: una pieza con los gramos sumados.
+            // Con impresiones del taller el costo es el real de todas ellas.
+            nueva({
+              descripcion: combo.descripcion,
+              gramos: combo.gramos ? String(Math.round(combo.gramos * 10) / 10).replace('.', ',') : '',
+              unitario: combo.gramos ? conPuntos(redondear(precioSugerido(combo.gramos * costoGramo, multiplicador))) : '',
+              costoFijo: combo.costo ?? undefined,
+            }),
+          ]
+        : [nueva()]
   );
   const [cliente, setCliente] = useState(edicion?.cliente ?? '');
   const [fecha, setFecha] = useState(edicion?.fecha ?? hoy);
@@ -252,7 +264,8 @@ export default function VentaRapida({
 
   // El costo se calcula igual que en el detalle de la venta: el de sus
   // impresiones si las tiene, si no los gramos por el precio por gramo guardado.
-  const costoDe = (l) => cantidadDe(l) * (l.costoUnidad ?? aNumero(l.gramos) * gramoDe(l));
+  // El de una venta armada con impresiones del taller es fijo: ya es el de todas ellas.
+  const costoDe = (l) => l.costoFijo ?? cantidadDe(l) * (l.costoUnidad ?? aNumero(l.gramos) * gramoDe(l));
   const calculo = lineas.map((l) => ({
     costo: costoDe(l),
     total: cantidadDe(l) * aNumero(l.unitario),
@@ -261,7 +274,7 @@ export default function VentaRapida({
   const costo = calculo.reduce((s, c) => s + c.costo, 0);
   const ganancia = total - aNumero(gastos) - costo;
   // Con impresiones cargadas el costo ya trae la luz y el desgaste.
-  const conImpresiones = lineas.some((l) => l.costoUnidad != null);
+  const conImpresiones = lineas.some((l) => l.costoUnidad != null || l.costoFijo != null);
   const listas = lineas.filter((l) => l.descripcion.trim()).length;
   // Entregada y sin precio es un regalo: no se registra ningún cobro.
   const sinPrecio = listas > 0 && total === 0 && estado === 'entregada';
@@ -312,7 +325,7 @@ export default function VentaRapida({
   };
 
   const terminar = () => {
-    if (edicion) return alListo?.(`${escrito || 'Sin cliente'} · ${plata(total)}`);
+    if (edicion || combo) return alListo?.(`${escrito || 'Sin cliente'} · ${plata(total)}`);
     setGuardada(`${escrito || 'Sin cliente'} · ${plata(total)}`);
     try {
       localStorage.setItem('venta:medio', medio);
@@ -461,12 +474,26 @@ export default function VentaRapida({
               <h2 id={`${uid}-piezas`} className="rotulo">
                 Qué vendiste
               </h2>
-              {!edicion && delDia?.cantidad > 0 && (
+              {!edicion && !combo && delDia?.cantidad > 0 && (
                 <p className="text-xs text-tenue">
                   Hoy: {delDia.cantidad} {delDia.cantidad === 1 ? 'venta' : 'ventas'} · <strong className="text-tinta">{plata(delDia.total)}</strong>
                 </p>
               )}
             </div>
+            {combo && (
+              <div className="rounded-box bg-papel px-3 py-2 text-sm">
+                <input type="hidden" name="combo_origen" value={combo.origen} />
+                {combo.ids.map((id) => (
+                  <input key={id} type="hidden" name="combo_id" value={id} />
+                ))}
+                <p className="font-medium">
+                  Con {combo.ids.length} {combo.ids.length === 1 ? 'impresión' : 'impresiones'} · {num(combo.gramos)} g en total
+                  {combo.costo != null && <span className="font-normal text-tenue"> · costo real {plata(combo.costo)}</span>}
+                </p>
+                <p className="text-xs text-tenue">{combo.titulos.join(' + ')}</p>
+                <p className="mt-1 text-xs text-tenue">Quedan todas asignadas a la primera pieza. Cambiale el nombre y el precio si hace falta.</p>
+              </div>
+            )}
             {retomada && !guardada && (
               <p role="status" className="flex flex-wrap items-center justify-between gap-x-3 rounded-box bg-papel px-3 py-1 text-sm">
                 <span>Seguís con la venta que dejaste a medias.</span>
