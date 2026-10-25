@@ -4,11 +4,12 @@ import { useState, useTransition } from 'react';
 import { Formulario, Enviar } from './formulario';
 import Icono from './iconos';
 import { avisar } from './avisos';
+import { armarVenta } from './dialogo-venta';
 import { clasificarBambu, conectarBambu, deshacerBambu, desconectarBambu, traerBambu } from '@/app/acciones';
 import { fecha, gramos as enGramos } from '@/lib/formato';
 import { estadoDe, fallo } from '@/lib/bambu';
 
-const DECISIONES = { venta: 'De una venta', stock: 'Stock', prueba: 'Prueba o falla', ignorar: 'No es del negocio' };
+const DECISIONES = { venta: 'De una venta', stock: 'Stock', prueba: 'Prueba o falla', ignorar: 'No es del negocio', cargada: 'Ya la cargué a mano' };
 const dia = (iso) => (iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) : null);
 
 export function duracion(segundos) {
@@ -83,6 +84,8 @@ export function Bandeja({ pendientes, piezas }) {
   // Se llaman como funciones (no como componentes) para que no se vuelvan a montar en cada cambio.
   const acciones = (ids, compacta = false) =>
     [
+      // "Ya la cargué a mano": la impresión ya está en el taller; solo sale de la bandeja.
+      ['cargada', 'Ya la cargué'],
       ['stock', 'Stock'],
       ['prueba', 'Prueba o falla'],
       ['ignorar', 'No es del negocio'],
@@ -92,7 +95,7 @@ export function Bandeja({ pendientes, piezas }) {
         type="button"
         disabled={guardando}
         onClick={() => clasificar(ids, d)}
-        className={`btn btn-ghost min-h-11 border border-linea px-3 ${compacta ? 'btn-sm' : ''}`}
+        className={`btn btn-ghost min-h-11 border border-linea px-3 ${compacta ? 'btn-sm' : ''} ${d === 'ignorar' ? 'col-span-2 sm:col-span-1' : ''}`}
       >
         {texto}
       </button>
@@ -129,18 +132,31 @@ export function Bandeja({ pendientes, piezas }) {
             onChange={() => setElegidas(todas ? new Set() : new Set(pendientes.map((p) => p.id)))}
             className="checkbox checkbox-sm"
           />
-          {elegidas.size ? `${cuantas(elegidas.size)} elegidas` : 'Elegir todas'}
+          {elegidas.size ? `${cuantas(elegidas.size)} ${elegidas.size === 1 ? 'elegida' : 'elegidas'}` : 'Elegir todas'}
         </label>
         {elegidas.size > 0 && (
           <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto sm:flex-wrap">
-            {acciones([...elegidas], true)}
+            {/* Varias impresiones de un mismo pedido: una sola venta con los gramos sumados. */}
+            <button
+              type="button"
+              onClick={() =>
+                armarVenta(
+                  'bambu',
+                  pendientes.filter((p) => elegidas.has(p.id)).map((p) => ({ id: p.id, titulo: p.titulo || p.diseno, gramos: p.gramos }))
+                )
+              }
+              className="btn btn-primary btn-sm col-span-2 min-h-11 px-3"
+            >
+              <Icono nombre="sumar" className="h-4 w-4" /> Armar una venta
+            </button>
             <button
               type="button"
               onClick={() => setAbierta(abierta === 'varias' ? null : 'varias')}
               className="btn btn-ghost btn-sm min-h-11 border border-linea px-3 font-semibold"
             >
-              De una venta
+              Es de una venta
             </button>
+            {acciones([...elegidas], true)}
           </div>
         )}
       </div>

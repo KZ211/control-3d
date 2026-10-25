@@ -4,6 +4,7 @@ import { plata, fecha, gramos, num } from '@/lib/formato';
 import { Pagina, Vacio, Dato, Tabla } from '@/components/ui';
 import { Accion, Formulario, Enviar } from '@/components/formulario';
 import { asignarItem, borrar } from '@/app/acciones';
+import { BarraCombo, ElegirParaVenta } from '@/components/combo';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,10 @@ export default async function Impresiones() {
   const piezas = piezasDeVentas(d);
   const horas = d.impresiones.reduce((s, i) => s + Number(i.horas || 0), 0);
   const fallidas = d.impresiones.filter((i) => i.fallida).length;
-  const enStock = d.impresiones.filter((i) => i.destino === 'stock' && !i.venta && !i.fallida).length;
+  // Las de stock se pueden juntar para armar una sola venta (por ejemplo, las placas de un pedido).
+  const libre = (i) => i.destino === 'stock' && !i.venta && !i.fallida;
+  const enStock = d.impresiones.filter(libre).length;
+  const disponibles = d.impresiones.filter(libre).map((i) => ({ id: i.id, titulo: i.pieza, gramos: Number(i.gramos) || 0, costo: Number(i.costo) || 0 }));
 
   return (
     <Pagina className="flex h-full flex-col">
@@ -27,12 +31,16 @@ export default async function Impresiones() {
           tono={fallidas ? 'pierde' : undefined}
         />
       </div>
+      <BarraCombo disponibles={disponibles} />
       {d.impresiones.length === 0 ? (
         <Vacio>Todavía no cargaste impresiones.</Vacio>
       ) : (
         <Tabla className="min-h-0 flex-1">
           <thead>
             <tr>
+              <th className="w-11 !p-0">
+                <span className="sr-only">Elegir</span>
+              </th>
               <th>Fecha</th>
               <th>Pieza</th>
               <th className="hidden md:table-cell">Máquina</th>
@@ -48,6 +56,7 @@ export default async function Impresiones() {
           <tbody>
             {d.impresiones.map((i) => (
               <tr key={i.id}>
+                <td className="w-11 !p-0">{libre(i) && <ElegirParaVenta id={i.id} nombre={i.pieza} />}</td>
                 <td className="whitespace-nowrap text-tenue">{fecha(i.fecha)}</td>
                 <td>
                   {i.pieza}

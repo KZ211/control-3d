@@ -343,8 +343,14 @@ export async function crearVenta(fd) {
     const cobrado = fd.get('pago_todo') ? total : numero(fd, 'cobrado');
     const medio = texto(fd, 'medio_pago');
 
+    // Una venta armada con varias impresiones (de la bandeja de Bambu o del
+    // taller): todas quedan asignadas a la primera pieza.
+    const combo = { origen: texto(fd, 'combo_origen'), ids: fd.getAll('combo_id').map(String).filter(Boolean) };
+
     const cliente = await buscarOCrearCliente(db, texto(fd, 'cliente'));
     let ventaId = null;
+    const creadas = [];
+    let deBambu = [];
     try {
       const { data: venta, error } = await db
         .from('ventas')
@@ -360,9 +366,26 @@ export async function crearVenta(fd) {
         .single();
       revisar({ error });
       ventaId = venta.id;
-      revisar(await db.from('venta_items').insert(items.map(({ id, ...r }) => ({ ...r, venta_id: ventaId }))));
+      const { data: piezas, error: errorPiezas } = await db
+        .from('venta_items')
+        .insert(items.map(({ id, ...r }) => ({ ...r, venta_id: ventaId })))
+        .select('id');
+      revisar({ error: errorPiezas });
       if (cobrado) revisar(await db.from('cobros').insert({ venta_id: ventaId, fecha, monto: cobrado, medio }));
+      if (combo.ids.length && combo.origen === 'impresiones') {
+        revisar(await db.from('impresiones').update({ venta_item_id: piezas[0].id }).in('id', combo.ids).is('venta_item_id', null));
+      }
+      if (combo.ids.length && combo.origen === 'bambu') {
+        const { data: filas, error } = await db.from('bambu_impresiones').select('*').in('id', combo.ids).eq('decision', 'pendiente');
+        revisar({ error });
+        deBambu = filas.map((f) => f.id);
+        await crearDesdeBambu(db, filas, 'venta', piezas[0].id, creadas);
+      }
     } catch (e) {
+      // Borrar la venta suelta las impresiones del taller (vuelven a stock); las
+      // creadas desde Bambu se borran y vuelven a la bandeja.
+      if (creadas.length) await db.from('impresiones').delete().in('id', creadas);
+      if (deBambu.length) await db.from('bambu_impresiones').update({ decision: 'pendiente', impresion_id: null }).in('id', deBambu);
       if (ventaId) await db.from('ventas').delete().eq('id', ventaId);
       if (cliente.creado) await db.from('clientes').delete().eq('id', cliente.id);
       throw new Error(`No se guardó nada: ${String(e.message).replace(/\.$/, '')}. Probá de nuevo.`);
@@ -580,6 +603,39 @@ export async function desconectarBambu() {
 // El día de la impresión, en hora de Argentina.
 const diaDe = (iso) => (iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) : undefined);
 
+// Pasa filas de la bandeja a impresiones de la app (con sus gramos por color)
+// y las marca como revisadas. Va anotando en `creadas` lo que crea, para que
+// quien la llama pueda borrarlo si algo falla después.
+async function crearDesdeBambu(db, filas, decision, ventaItem, creadas) {
+  const { data: maquinas, error } = await db.from('maquinas').select('id, bambu_id').not('bambu_id', 'is', null);
+  revisar({ error });
+  const maquinaDe = Object.fromEntries(maquinas.map((m) => [m.bambu_id, m.id]));
+  const costoGramo = await costoGramoDeAjustes(db);
+  for (const f of filas) {
+    const { data: impresion, error } = await db
+      .from('impresiones')
+      .insert({
+        fecha: diaDe(f.fin ?? f.inicio),
+        pieza: f.titulo || f.diseno || 'Impresión de Bambu Lab',
+        venta_item_id: ventaItem,
+        destino: decision === 'prueba' ? 'prueba' : 'stock',
+        maquina_id: maquinaDe[f.impresora_id] ?? null,
+        horas: Math.round((f.segundos / 3600) * 100) / 100,
+        unidades: 1,
+        fallida: decision === 'prueba' && fallo(f.estado),
+        notas: [f.placa, 'desde Bambu Lab'].filter(Boolean).join(' · '),
+      })
+      .select('id')
+      .single();
+    revisar({ error });
+    creadas.push(impresion.id);
+    // Sin lote elegido: el precio del gramo de Ajustes, como al cargarla a mano sin lote.
+    const gramos = gramosPorFilamento(f);
+    if (gramos.length) revisar(await db.from('impresion_filamentos').insert(gramos.map((g) => ({ impresion_id: impresion.id, gramos: g, costo_gramo: costoGramo }))));
+    revisar(await db.from('bambu_impresiones').update({ decision, impresion_id: impresion.id }).eq('id', f.id));
+  }
+}
+
 // Clasifica una o varias impresiones de la bandeja. Todo o nada: si algo
 // falla, se borra lo que se llegó a crear y vuelven a quedar pendientes.
 export async function clasificarBambu(fd) {
@@ -588,48 +644,23 @@ export async function clasificarBambu(fd) {
     const decision = texto(fd, 'decision');
     const ventaItem = texto(fd, 'venta_item_id');
     if (!ids.length) throw new Error('Elegí al menos una impresión.');
-    if (!['venta', 'stock', 'prueba', 'ignorar'].includes(decision)) throw new Error('Elegí qué hacer con la impresión.');
+    if (!['venta', 'stock', 'prueba', 'ignorar', 'cargada'].includes(decision)) throw new Error('Elegí qué hacer con la impresión.');
     if (decision === 'venta' && !ventaItem) throw new Error('Elegí de qué venta es.');
     const db = await conSesion();
     const { data: filas, error } = await db.from('bambu_impresiones').select('*').in('id', ids).eq('decision', 'pendiente');
     revisar({ error });
     if (!filas.length) throw new Error('Esas impresiones ya estaban revisadas.');
 
-    if (decision === 'ignorar') {
+    // "No es del negocio" y "Ya la cargué" (a mano) solo la sacan de la bandeja: no crean nada.
+    if (decision === 'ignorar' || decision === 'cargada') {
       revisar(await db.from('bambu_impresiones').update({ decision }).in('id', filas.map((f) => f.id)));
       listo();
       return { ids: filas.map((f) => f.id) };
     }
 
-    const { data: maquinas, error: errorMaquinas } = await db.from('maquinas').select('id, bambu_id').not('bambu_id', 'is', null);
-    revisar({ error: errorMaquinas });
-    const maquinaDe = Object.fromEntries(maquinas.map((m) => [m.bambu_id, m.id]));
-    const costoGramo = await costoGramoDeAjustes(db);
     const creadas = [];
     try {
-      for (const f of filas) {
-        const { data: impresion, error } = await db
-          .from('impresiones')
-          .insert({
-            fecha: diaDe(f.fin ?? f.inicio),
-            pieza: f.titulo || f.diseno || 'Impresión de Bambu Lab',
-            venta_item_id: decision === 'venta' ? ventaItem : null,
-            destino: decision === 'prueba' ? 'prueba' : 'stock',
-            maquina_id: maquinaDe[f.impresora_id] ?? null,
-            horas: Math.round((f.segundos / 3600) * 100) / 100,
-            unidades: 1,
-            fallida: decision === 'prueba' && fallo(f.estado),
-            notas: [f.placa, 'desde Bambu Lab'].filter(Boolean).join(' · '),
-          })
-          .select('id')
-          .single();
-        revisar({ error });
-        creadas.push(impresion.id);
-        // Sin lote elegido: el precio del gramo de Ajustes, como al cargarla a mano sin lote.
-        const gramos = gramosPorFilamento(f);
-        if (gramos.length) revisar(await db.from('impresion_filamentos').insert(gramos.map((g) => ({ impresion_id: impresion.id, gramos: g, costo_gramo: costoGramo }))));
-        revisar(await db.from('bambu_impresiones').update({ decision, impresion_id: impresion.id }).eq('id', f.id));
-      }
+      await crearDesdeBambu(db, filas, decision, decision === 'venta' ? ventaItem : null, creadas);
     } catch (e) {
       if (creadas.length) await db.from('impresiones').delete().in('id', creadas);
       await db.from('bambu_impresiones').update({ decision: 'pendiente', impresion_id: null }).in('id', filas.map((f) => f.id));
