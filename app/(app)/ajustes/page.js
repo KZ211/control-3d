@@ -1,4 +1,5 @@
-import { cargar } from '@/lib/datos';
+import { cargar, cargarBambu } from '@/lib/datos';
+import { ConexionBambu } from '@/components/bambu';
 import { plata, plataFina } from '@/lib/formato';
 import { Pagina, Hoja, Campo, Explica } from '@/components/ui';
 import { Formulario, Enviar } from '@/components/formulario';
@@ -7,7 +8,7 @@ import { guardarAjustes } from '@/app/acciones';
 export const dynamic = 'force-dynamic';
 
 export default async function Ajustes() {
-  const d = await cargar();
+  const [d, b] = await Promise.all([cargar(), cargarBambu()]);
   const { costoGramo, multiplicador, multiplicadorMayor, reinversionPct, precioKwh } = d.ajustes;
   // Precio por gramo promedio del filamento que queda, para comparar.
   const gramosStock = d.stock.reduce((s, l) => s + l.quedan, 0);
@@ -48,6 +49,20 @@ export default async function Ajustes() {
             {plata(75 * costoGramo * 5)}; por mayor, con ×{String(multiplicadorMayor).replace('.', ',')}, {plata(75 * costoGramo * multiplicadorMayor)} cada una. Las piezas chicas y rápidas aguantan multiplicadores más altos; las grandes, más bajos.
           </p>
         </Explica>
+      </Hoja>
+      <Hoja className="p-5">
+        <h2 className="text-lg font-bold">Bambu Lab</h2>
+        <p className="mb-4 text-sm text-tenue">
+          Trae tu historial de impresiones a Taller → Por revisar, para elegir cuáles van a una venta. Usa la misma conexión que la app Bambu Handy, que no es
+          oficial: si Bambu la cambia, puede dejar de andar.
+        </p>
+        {b.falta ? (
+          <p className="text-sm">
+            Primero corré <strong>supabase/cambios/2026-10-25-bambu-lab.sql</strong> en Supabase → SQL Editor.
+          </p>
+        ) : (
+          <ConexionBambu conexion={b.conexion} />
+        )}
       </Hoja>
     </Pagina>
   );

@@ -11,7 +11,9 @@ Next.js 14 (App Router), JavaScript, Tailwind CSS y Supabase (base de datos y lo
 3. **Cerrar el registro.** Authentication > Sign In / Providers: desactivá "Allow new users to sign up". Así nadie más puede crear una cuenta.
 4. **Datos de la planilla (opcional).** Pegá y ejecutá `supabase/datos-iniciales.sql`. Carga las tres hojas de "Costos empresa 3D": máquinas y compras (Deuda), las 75 filas de Ventas agrupadas en pedidos por cliente, y la hoja Impresion propia. Al principio del archivo están anotados los supuestos (fechas, cobros pendientes, encargos).
 5. **Claves.** Copiá `.env.example` como `.env.local` y completá la URL y la clave publicable (Project Settings > API Keys). Nunca uses la clave secreta / service_role.
-6. **Correr la app:**
+6. **Cambios de la base.** Si tu base es de antes, corré en el SQL Editor los archivos de `supabase/cambios/` que todavía no corriste (cada uno dice qué hace).
+7. **Bambu Lab (opcional).** En Ajustes → Bambu Lab pegás el token de tu cuenta y el historial de impresiones aparece en Taller → Por revisar. Usa la API no oficial de Bambu Handy: puede dejar de andar si Bambu la cambia.
+8. **Correr la app:**
 
    ```bash
    npm install
