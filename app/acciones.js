@@ -312,6 +312,8 @@ function renglones(fd, costoGramo) {
   const gramos = columna('item_gramos');
   const precios = columna('item_precio');
   const ids = columna('item_id');
+  // El precio del gramo puede venir por pieza desde la venta; si no, el de Ajustes.
+  const porGramo = columna('item_costo_gramo');
   return descripciones
     .map((descripcion, i) => ({
       id: ids[i] || null,
@@ -319,7 +321,7 @@ function renglones(fd, costoGramo) {
       producto_id: productos[i] || null,
       cantidad: aNumero(cantidades[i]) ?? 1,
       gramos_unidad: aNumero(gramos[i]) ?? 0,
-      costo_gramo: costoGramo,
+      costo_gramo: aNumero(porGramo[i]) > 0 ? aNumero(porGramo[i]) : costoGramo,
       precio: aNumero(precios[i]) ?? 0,
     }))
     .filter((r) => r.descripcion);
@@ -396,9 +398,10 @@ export async function editarVenta(ventaId, fd) {
     const quedan = new Set(items.map((r) => r.id).filter(Boolean));
     const sacar = antes.map((r) => r.id).filter((id) => !quedan.has(id));
     if (sacar.length) revisar(await db.from('venta_items').delete().in('id', sacar));
-    for (const { id, costo_gramo, ...r } of items) {
+    // El precio del gramo también se actualiza: la venta manda el de cada pieza.
+    for (const { id, ...r } of items) {
       if (id) revisar(await db.from('venta_items').update(r).eq('id', id).eq('venta_id', ventaId));
-      else revisar(await db.from('venta_items').insert({ ...r, costo_gramo, venta_id: ventaId }));
+      else revisar(await db.from('venta_items').insert({ ...r, venta_id: ventaId }));
     }
     // Lo que faltaba cobrar después de cambiar los precios, si marcaste que ya lo cobraste.
     if (diferencia > 0) revisar(await db.from('cobros').insert({ venta_id: ventaId, monto: diferencia, medio: texto(fd, 'medio_pago') }));

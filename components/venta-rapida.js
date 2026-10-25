@@ -79,6 +79,7 @@ export default function VentaRapida({
     cantidad: 1,
     gramos: '',
     unitario: '',
+    porGramo: '',
     auto: true,
     ...cambio,
   });
@@ -94,7 +95,7 @@ export default function VentaRapida({
             unitario: it.precio ? conPuntos(it.precio / it.cantidad) : '',
             auto: false,
             costoUnidad: it.costoUnidad,
-            costoGramo: it.costoGramo,
+            porGramo: it.costoGramo ? conPuntos(it.costoGramo) : '',
           })
         )
       : [nueva()]
@@ -205,14 +206,23 @@ export default function VentaRapida({
     alCambiarSucio?.(firma !== inicial.current);
   }, [firma]);
 
-  const sugerido = (gramos, mult) => precioSugerido(aNumero(gramos) * costoGramo, mult);
+  // Cada pieza puede tener su propio precio por gramo (otro filamento, o uno que
+  // compraste a otro precio); vacío usa el de Ajustes.
+  const gramoDe = (l) => aNumero(l?.porGramo) || costoGramo;
+  const sugerido = (gramos, mult, l) => precioSugerido(aNumero(gramos) * gramoDe(l), mult);
   const cambiar = (k, cambio) => {
     setGuardada(null);
     setLineas((a) => a.map((l) => (l.k === k ? { ...l, ...cambio } : l)));
   };
   const cambiarGramos = (l, gramos) => {
-    const sug = aNumero(gramos) > 0 ? redondear(sugerido(gramos, multiplicador)) : 0;
+    const sug = aNumero(gramos) > 0 ? redondear(sugerido(gramos, multiplicador, l)) : 0;
     cambiar(l.k, l.auto ? { gramos, unitario: sug ? conPuntos(sug) : '' } : { gramos });
+  };
+  // Con el precio sugerido puesto, cambiar el precio por gramo también lo actualiza.
+  const cambiarPorGramo = (l, porGramo) => {
+    const otra = { ...l, porGramo };
+    const sug = aNumero(l.gramos) > 0 ? redondear(sugerido(l.gramos, multiplicador, otra)) : 0;
+    cambiar(l.k, l.auto && sug ? { porGramo, unitario: conPuntos(sug) } : { porGramo });
   };
   const cantidadDe = (l) => Math.max(1, parseInt(l.cantidad, 10) || 1);
   const quitar = (k) => setLineas((a) => (a.length > 1 ? a.filter((l) => l.k !== k) : [nueva()]));
@@ -242,7 +252,7 @@ export default function VentaRapida({
 
   // El costo se calcula igual que en el detalle de la venta: el de sus
   // impresiones si las tiene, si no los gramos por el precio por gramo guardado.
-  const costoDe = (l) => cantidadDe(l) * (l.costoUnidad ?? aNumero(l.gramos) * (l.costoGramo ?? costoGramo));
+  const costoDe = (l) => cantidadDe(l) * (l.costoUnidad ?? aNumero(l.gramos) * gramoDe(l));
   const calculo = lineas.map((l) => ({
     costo: costoDe(l),
     total: cantidadDe(l) * aNumero(l.unitario),
@@ -468,8 +478,9 @@ export default function VentaRapida({
 
             <ul className="space-y-2">
               {lineas.map((l, i) => {
-                const sug = aNumero(l.gramos) > 0 ? redondear(sugerido(l.gramos, multiplicador)) : 0;
-                const mayor = aNumero(l.gramos) > 0 ? redondear(sugerido(l.gramos, multiplicadorMayor)) : 0;
+                const sug = aNumero(l.gramos) > 0 ? redondear(sugerido(l.gramos, multiplicador, l)) : 0;
+                const mayor = aNumero(l.gramos) > 0 ? redondear(sugerido(l.gramos, multiplicadorMayor, l)) : 0;
+                const propio = aNumero(l.porGramo) > 0 && aNumero(l.porGramo) !== costoGramo;
                 const precio = aNumero(l.unitario);
                 const obligatoria = i === 0 || !vacia(l);
                 return (
@@ -478,6 +489,7 @@ export default function VentaRapida({
                     <input type="hidden" name="item_producto" value={l.producto} />
                     <input type="hidden" name="item_cantidad" value={cantidadDe(l)} />
                     <input type="hidden" name="item_precio" value={calculo[i].total} />
+                    <input type="hidden" name="item_costo_gramo" value={gramoDe(l)} />
                     <div className="flex items-center gap-2">
                       <input
                         name="item_descripcion"
@@ -577,12 +589,32 @@ export default function VentaRapida({
                         <details className="group text-tenue">
                           <summary className="flex min-h-11 cursor-pointer select-none list-none items-center gap-1 underline-offset-2 hover:underline [&::-webkit-details-marker]:hidden">
                             <Icono nombre="siguiente" className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
-                            Filamento {plata(aNumero(l.gramos) * costoGramo)} c/u · ¿de dónde salen estos precios?
+                            Filamento {plata(aNumero(l.gramos) * gramoDe(l))} c/u
+                            {propio ? (
+                              <span className="font-medium text-tinta"> · a {plataFina(gramoDe(l))} el gramo</span>
+                            ) : (
+                              ' · ver la cuenta o cambiar el precio del gramo'
+                            )}
                           </summary>
+                          <label className="mt-2 flex flex-wrap items-center gap-2">
+                            <span>Precio del gramo para esta pieza</span>
+                            <Monto
+                              value={l.porGramo}
+                              alCambiar={(v) => cambiarPorGramo(l, v)}
+                              placeholder={num(costoGramo)}
+                              className="w-28"
+                              aria-label={`Precio del gramo de filamento para ${l.descripcion || 'la pieza'}`}
+                            />
+                            {propio && (
+                              <button type="button" onClick={() => cambiarPorGramo(l, '')} className="btn btn-ghost btn-sm min-h-11 underline underline-offset-2">
+                                Volver a {plataFina(costoGramo)} (Ajustes)
+                              </button>
+                            )}
+                          </label>
                           <p className="mt-1 max-w-prose leading-relaxed">
-                            {num(aNumero(l.gramos))} g × {plataFina(costoGramo)} el gramo = {plata(aNumero(l.gramos) * costoGramo)} de filamento por unidad. El sugerido
+                            {num(aNumero(l.gramos))} g × {plataFina(gramoDe(l))} el gramo = {plata(aNumero(l.gramos) * gramoDe(l))} de filamento por unidad. El sugerido
                             lo multiplica por {num(multiplicador)} para cubrir la luz, el desgaste, las piezas que salen mal y tu tiempo; el de por mayor, por{' '}
-                            {num(multiplicadorMayor)}. Los multiplicadores se cambian en Ajustes.
+                            {num(multiplicadorMayor)}. El precio por gramo de siempre ({plataFina(costoGramo)}) y los multiplicadores se cambian en Ajustes.
                           </p>
                         </details>
                         <div className="mt-1 flex gap-1.5">
