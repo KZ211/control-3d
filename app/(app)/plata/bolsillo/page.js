@@ -37,7 +37,12 @@ export default async function TuBolsillo() {
           </div>
           <div className="mt-4">
             <Renglon concepto="Ya sacaste (retiros)" monto={bol.retirado} />
-            {bol.gastado > 0 && <Renglon concepto="Gastado" monto={bol.gastado} nota="Salió de la caja pero no está ni en la caja ni en tu bolsillo" />}
+            {bol.gastado > 0 && (
+              <>
+                <Renglon concepto="De eso gastaste" monto={-bol.gastado} nota="Ya no está ni en la caja ni con vos" />
+                <Renglon concepto="Lo tenés vos" monto={bol.retirado - bol.gastado} nota="Lo que sacaste y todavía no gastaste" />
+              </>
+            )}
             <Renglon concepto="Está en la caja" monto={bol.caja} nota="La podés sacar cuando quieras" />
           </div>
           <Explica titulo="¿Y la recuperación?">
@@ -57,7 +62,7 @@ export default async function TuBolsillo() {
               <select name="tipo" className="entrada" defaultValue="retiro">
                 <option value="retiro">Retiro: saco plata de la caja para mí</option>
                 <option value="aporte">Aporte: pongo plata mía en la caja</option>
-                <option value="gasto">Gastado: salió de la caja y no fue a mi bolsillo</option>
+                <option value="gasto">Gastado: gasté plata que ya había sacado (no toca la caja)</option>
               </select>
             </Campo>
             <Campo nombre="Monto">
@@ -83,8 +88,8 @@ export default async function TuBolsillo() {
               bolsillo” en Compras.
             </p>
             <p>
-              <strong>Gastado</strong> es plata que salió de la caja pero no volvió a vos: se fue en cosas que no registraste, o no sabés en qué. Baja la caja, pero
-              no cuenta como algo que recuperaste. Si sabés en qué fue, mejor cargalo como una compra.
+              <strong>Gastado</strong> es plata que ya habías sacado de la caja con un retiro y gastaste: sale de tu bolsillo, no de la caja. Así ves cuánto de lo que
+              sacaste todavía tenés. Las compras del emprendimiento (filamento, repuestos) no van acá: cargalas en Compras pagadas con la caja.
             </p>
           </Explica>
         </section>

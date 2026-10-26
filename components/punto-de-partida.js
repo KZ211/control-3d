@@ -26,8 +26,8 @@ export function ContarCaja({ calculado, hayPunto }) {
           texto:
             Math.abs(r.diferencia) < 1
               ? 'Caja contada: coincide con la app'
-              : `Caja contada: ${r.diferencia > 0 ? 'aporte' : r.faltante === 'gasto' ? 'gastado' : 'retiro'} de ${plata(Math.abs(r.diferencia))}`,
-          deshacer: () => deshacerConteo(r.conteo, r.puntoAntes),
+              : `Caja contada: ${r.diferencia > 0 ? 'aporte' : r.faltante === 'gasto' ? 'retiro y gastado' : 'retiro'} de ${plata(Math.abs(r.diferencia))}`,
+          deshacer: () => deshacerConteo(r.conteo, r.puntoAntes, r.gasto),
         });
       }}
       className="grid gap-3"
@@ -76,8 +76,8 @@ export function ContarCaja({ calculado, hayPunto }) {
           </div>
           <p className="mt-1 text-xs text-tenue">
             {faltante === 'retiro'
-              ? 'Queda como un retiro en Tu bolsillo: plata del emprendimiento que volvió a vos.'
-              : 'Queda como gastado: salió de la caja, pero no está ni en la caja ni en tu bolsillo.'}
+              ? 'Queda como un retiro en Tu bolsillo: plata del emprendimiento que tenés vos.'
+              : 'Queda como un retiro y, además, como gastado de tu bolsillo: ya no está ni en la caja ni con vos.'}
           </p>
         </fieldset>
       )}

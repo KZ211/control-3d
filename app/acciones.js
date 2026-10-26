@@ -744,9 +744,9 @@ export async function moverCapital(fd) {
 // Punto de partida
 
 // Contar la caja: lo que hay de verdad contra lo que calcula la app. Lo que
-// falta queda como un retiro tuyo (plata del emprendimiento que usaste) o como
-// gastado (se fue en algo que no se registró); si sobra, como un aporte. Desde
-// ahí la caja de la app es la real.
+// falta queda como un retiro tuyo (plata del emprendimiento que usaste) y, si
+// se gastó, también como gastado de tu bolsillo; si sobra, como un aporte.
+// Desde ahí la caja de la app es la real.
 export async function contarCaja(fd) {
   return intentar(async () => {
     const contado = numero(fd, 'contado');
@@ -755,22 +755,31 @@ export async function contarCaja(fd) {
     const calculado = Math.round(d.balance.caja * 100) / 100;
     const diferencia = Math.round((contado - calculado) * 100) / 100;
     const fecha = hoy();
-    // Lo que falta: o lo usaste para vos (retiro) o se gastó en algo (gasto).
+    // Lo que falta salió de la caja (un retiro). Si además se gastó, ese gasto
+    // sale de tu bolsillo: no está ni en la caja ni con vos.
     const faltante = texto(fd, 'faltante') === 'gasto' ? 'gasto' : 'retiro';
     const db = await conSesion();
     let capital = null;
+    let gasto = null;
     if (Math.abs(diferencia) >= 1) {
+      const monto = Math.abs(diferencia);
       const { data, error } = await db
         .from('capital')
-        .insert({ fecha, tipo: diferencia > 0 ? 'aporte' : faltante, monto: Math.abs(diferencia), nota: 'Diferencia al contar la caja' })
+        .insert({ fecha, tipo: diferencia > 0 ? 'aporte' : 'retiro', monto, nota: 'Diferencia al contar la caja' })
         .select('id')
         .single();
       revisar({ error });
       capital = data.id;
+      if (diferencia < 0 && faltante === 'gasto') {
+        const r = await db.from('capital').insert({ fecha, tipo: 'gasto', monto, nota: 'Diferencia al contar la caja: se gastó' }).select('id').single();
+        if (r.error) await db.from('capital').delete().eq('id', capital);
+        revisar(r);
+        gasto = r.data.id;
+      }
     }
     const { data: conteo, error } = await db.from('conteos_caja').insert({ fecha, contado, calculado, capital_id: capital }).select('id').single();
     if (error) {
-      if (capital) await db.from('capital').delete().eq('id', capital);
+      await db.from('capital').delete().in('id', [capital, gasto].filter(Boolean));
       revisar({ error });
     }
     // El primer conteo es el punto de partida; después, solo si lo elegís.
@@ -778,19 +787,20 @@ export async function contarCaja(fd) {
       revisar(await db.from('ajustes').upsert({ punto_partida: fecha }, { onConflict: 'user_id' }));
     }
     listo();
-    return { conteo: conteo.id, diferencia, faltante, puntoAntes: d.ajustes.puntoPartida };
+    return { conteo: conteo.id, diferencia, faltante, gasto, puntoAntes: d.ajustes.puntoPartida };
   });
 }
 
-// Borra un conteo y el retiro o aporte que había generado. `puntoAntes` es el
-// punto de partida que había antes de ese conteo.
-export async function deshacerConteo(conteoId, puntoAntes) {
+// Borra un conteo y el retiro o aporte que había generado (y el gastado, si
+// hubo). `puntoAntes` es el punto de partida que había antes de ese conteo.
+export async function deshacerConteo(conteoId, puntoAntes, gasto) {
   return intentar(async () => {
     const db = await conSesion();
     const { data: conteo, error } = await db.from('conteos_caja').select('capital_id').eq('id', conteoId).single();
     revisar({ error });
     revisar(await db.from('conteos_caja').delete().eq('id', conteoId));
-    if (conteo.capital_id) revisar(await db.from('capital').delete().eq('id', conteo.capital_id));
+    const borrar = [conteo.capital_id, gasto].filter(Boolean);
+    if (borrar.length) revisar(await db.from('capital').delete().in('id', borrar));
     revisar(await db.from('ajustes').upsert({ punto_partida: puntoAntes ?? null }, { onConflict: 'user_id' }));
     listo();
   });
