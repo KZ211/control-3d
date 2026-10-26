@@ -4,6 +4,7 @@ import { Pagina, Vacio, Dato } from '@/components/ui';
 import { Accion } from '@/components/formulario';
 import { marcarAgotado } from '@/app/acciones';
 import { InventarioFilamento } from '@/components/punto-de-partida';
+import { CorregirGramos } from '@/components/filamento';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +58,15 @@ export default async function Filamento() {
                 <p className="mt-1 text-xs text-tenue">
                   Usado {gramos(c.lote.usados)}
                   {c.lote.usadosSinLote > 0 && ` (${gramos(c.lote.usadosSinLote)} sin lote)`}
+                  {c.lote.ajuste !== 0 && ` · corregido al pesarlo: ${c.lote.ajuste > 0 ? '+' : '−'}${gramos(Math.abs(c.lote.ajuste))}`}
                 </p>
+                <CorregirGramos
+                  id={c.id}
+                  nombre={[c.material, c.color].filter(Boolean).join(' ') || c.descripcion}
+                  cantidad={Number(c.cantidad)}
+                  porRollo={c.gramos_por_unidad ?? 1000}
+                  quedan={resto}
+                />
               </li>
             );
           })}
@@ -69,7 +78,7 @@ export default async function Filamento() {
           {gramos(sueltos)} impresos no dicen de qué rollo salieron ({gramos(d.gramosSueltos.ventas)} de ventas sin impresiones, como las de la planilla, y{' '}
           {gramos(d.gramosSueltos.impresiones)} de impresiones sin lote). Se descuentan de los rollos más viejos primero.
           {d.gramosSueltos.sinRollo > 0 && ` ${gramos(d.gramosSueltos.sinRollo)} no entran en ningún rollo: falta cargar alguna compra de filamento.`} Si al contar no
-          coincide, usá “Se terminó” o corregí los gramos en el Historial.
+          coincide, pesá el rollo y usá “Corregir gramos”, o “Se terminó”.
         </p>
       )}
     </Pagina>

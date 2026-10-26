@@ -314,3 +314,6 @@ alter table public.conteos_caja enable row level security;
 drop policy if exists "solo el dueño" on public.conteos_caja;
 create policy "solo el dueño" on public.conteos_caja for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Corrección de gramos de un rollo (también en supabase/cambios/2026-10-26-gramos-filamento.sql).
+alter table public.compras add column if not exists gramos_ajuste numeric(10, 2) not null default 0;
