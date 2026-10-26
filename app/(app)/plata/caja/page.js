@@ -16,7 +16,7 @@ export default async function Caja() {
       <div className="grid shrink-0 grid-cols-2 sm:grid-cols-3 gap-3">
         <Dato className="col-span-2 sm:col-span-1" nombre="Hay en la caja" valor={plata(d.balance.caja)} tono={d.balance.caja < 0 ? 'pierde' : undefined} />
         <Dato nombre="Entró" valor={plata(entro)} nota="cobros y aportes" tono="gana" />
-        <Dato nombre="Salió" valor={plata(salio)} nota="compras, cuotas y retiros" />
+        <Dato nombre="Salió" valor={plata(salio)} nota="compras, cuotas, retiros y gastado" />
       </div>
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_22rem]">
         {movs.length === 0 ? (

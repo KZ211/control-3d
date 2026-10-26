@@ -187,6 +187,33 @@ export async function asignarMaquina(compraId, fd) {
   });
 }
 
+// Corrige los gramos de un rollo cargado: cuántos rollos y de cuántos gramos
+// eran (eso cambia el precio por gramo) y, si lo pesaste, cuánto queda hoy. Lo
+// que queda se guarda como la diferencia con lo que calcula la app.
+export async function editarFilamento(compraId, fd) {
+  return intentar(async () => {
+    const cantidad = numero(fd, 'cantidad');
+    const porRollo = numero(fd, 'gramos_por_unidad');
+    const quedan = numero(fd, 'quedan');
+    if (!(cantidad > 0)) throw new Error('Poné cuántos rollos eran.');
+    if (!(porRollo > 0)) throw new Error('Poné cuántos gramos trae cada rollo.');
+    if (quedan != null && quedan < 0) throw new Error('Lo que queda no puede ser menos que cero.');
+    const d = await cargar();
+    const lote = d.lotes.find((l) => l.id === compraId);
+    if (!lote) throw new Error('No encontré ese rollo.');
+    const cambio = { cantidad, gramos_por_unidad: Math.round(porRollo) };
+    if (quedan != null) {
+      // Lo usado sin la corrección anterior, contra el total nuevo del lote.
+      const usado = lote.usados - lote.ajuste;
+      cambio.gramos_ajuste = Math.round((cantidad * Math.round(porRollo) - quedan - usado) * 100) / 100;
+      if (quedan > 0) cambio.agotado = false;
+    }
+    const db = await conSesion();
+    revisar(await db.from('compras').update(cambio).eq('id', compraId));
+    listo();
+  });
+}
+
 export async function marcarAgotado(compraId, agotado) {
   return intentar(async () => {
     const db = await conSesion();
@@ -716,9 +743,10 @@ export async function moverCapital(fd) {
 
 // Punto de partida
 
-// Contar la caja: lo que hay de verdad contra lo que calcula la app. La
-// diferencia queda como un retiro tuyo (plata del emprendimiento que usaste)
-// o, si sobra, como un aporte. Desde ahí la caja de la app es la real.
+// Contar la caja: lo que hay de verdad contra lo que calcula la app. Lo que
+// falta queda como un retiro tuyo (plata del emprendimiento que usaste) o como
+// gastado (se fue en algo que no se registró); si sobra, como un aporte. Desde
+// ahí la caja de la app es la real.
 export async function contarCaja(fd) {
   return intentar(async () => {
     const contado = numero(fd, 'contado');
@@ -727,12 +755,14 @@ export async function contarCaja(fd) {
     const calculado = Math.round(d.balance.caja * 100) / 100;
     const diferencia = Math.round((contado - calculado) * 100) / 100;
     const fecha = hoy();
+    // Lo que falta: o lo usaste para vos (retiro) o se gastó en algo (gasto).
+    const faltante = texto(fd, 'faltante') === 'gasto' ? 'gasto' : 'retiro';
     const db = await conSesion();
     let capital = null;
     if (Math.abs(diferencia) >= 1) {
       const { data, error } = await db
         .from('capital')
-        .insert({ fecha, tipo: diferencia < 0 ? 'retiro' : 'aporte', monto: Math.abs(diferencia), nota: 'Diferencia al contar la caja' })
+        .insert({ fecha, tipo: diferencia > 0 ? 'aporte' : faltante, monto: Math.abs(diferencia), nota: 'Diferencia al contar la caja' })
         .select('id')
         .single();
       revisar({ error });
@@ -748,7 +778,7 @@ export async function contarCaja(fd) {
       revisar(await db.from('ajustes').upsert({ punto_partida: fecha }, { onConflict: 'user_id' }));
     }
     listo();
-    return { conteo: conteo.id, diferencia, puntoAntes: d.ajustes.puntoPartida };
+    return { conteo: conteo.id, diferencia, faltante, puntoAntes: d.ajustes.puntoPartida };
   });
 }
 

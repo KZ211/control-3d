@@ -37,6 +37,7 @@ export default async function TuBolsillo() {
           </div>
           <div className="mt-4">
             <Renglon concepto="Ya sacaste (retiros)" monto={bol.retirado} />
+            {bol.gastado > 0 && <Renglon concepto="Gastado" monto={bol.gastado} nota="Salió de la caja pero no está ni en la caja ni en tu bolsillo" />}
             <Renglon concepto="Está en la caja" monto={bol.caja} nota="La podés sacar cuando quieras" />
           </div>
           <Explica titulo="¿Y la recuperación?">
@@ -56,6 +57,7 @@ export default async function TuBolsillo() {
               <select name="tipo" className="entrada" defaultValue="retiro">
                 <option value="retiro">Retiro: saco plata de la caja para mí</option>
                 <option value="aporte">Aporte: pongo plata mía en la caja</option>
+                <option value="gasto">Gastado: salió de la caja y no fue a mi bolsillo</option>
               </select>
             </Campo>
             <Campo nombre="Monto">
@@ -71,7 +73,7 @@ export default async function TuBolsillo() {
               <Enviar className="boton w-full">Guardar</Enviar>
             </div>
           </Formulario>
-          <Explica titulo="¿Aporte o retiro?">
+          <Explica titulo="¿Aporte, retiro o gastado?">
             <p>
               Lo que pusiste de tu liquidación es <strong>capital</strong>: plata tuya invertida que querés que vuelva. Vuelve cuando hacés un <strong>retiro</strong>:
               sacás plata de la caja para vos. Si gastás plata de las ventas en algo personal, también es un retiro.
@@ -80,25 +82,29 @@ export default async function TuBolsillo() {
               Un <strong>aporte</strong> es lo contrario: ponés plata tuya en la caja. Si pagás una compra directo de tu bolsillo, no hace falta: marcala como “de mi
               bolsillo” en Compras.
             </p>
+            <p>
+              <strong>Gastado</strong> es plata que salió de la caja pero no volvió a vos: se fue en cosas que no registraste, o no sabés en qué. Baja la caja, pero
+              no cuenta como algo que recuperaste. Si sabés en qué fue, mejor cargalo como una compra.
+            </p>
           </Explica>
         </section>
 
         <section aria-labelledby="t-movs" className="tarjeta flex flex-col p-5 lg:min-h-0">
           <h2 id="t-movs" className="rotulo mb-2">
-            Aportes y retiros
+            Aportes, retiros y gastado
           </h2>
           {d.capital.length === 0 ? (
-            <Vacio>Todavía no registraste aportes ni retiros.</Vacio>
+            <Vacio>Todavía no registraste aportes, retiros ni gastado.</Vacio>
           ) : (
             <ul className="min-h-0 flex-1 divide-y divide-linea overflow-y-auto">
               {d.capital.map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                   <span>
-                    <span className="font-medium">{m.tipo === 'aporte' ? 'Aporte' : 'Retiro'}</span> · {fecha(m.fecha)}
+                    <span className="font-medium">{m.tipo === 'aporte' ? 'Aporte' : m.tipo === 'gasto' ? 'Gastado' : 'Retiro'}</span> · {fecha(m.fecha)}
                     {m.nota && <span className="block text-xs text-tenue">{m.nota}</span>}
                   </span>
                   <span className="flex items-center gap-2">
-                    <span className={m.tipo === 'aporte' ? '' : 'text-gana'}>{plata(m.monto)}</span>
+                    <span className={m.tipo === 'retiro' ? 'text-gana' : m.tipo === 'gasto' ? 'text-tenue' : ''}>{plata(m.monto)}</span>
                     <Accion accion={borrar.bind(null, 'capital', m.id)} confirmar="¿Borrar este movimiento?">
                       ✕
                     </Accion>

@@ -192,7 +192,8 @@ create table public.capital (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   fecha date not null default current_date,
-  tipo text not null check (tipo in ('aporte', 'retiro')),
+  -- gasto: salió de la caja pero no fue a tu bolsillo (se gastó o se perdió).
+  tipo text not null check (tipo in ('aporte', 'retiro', 'gasto')),
   monto numeric(12, 2) not null check (monto > 0),
   nota text,
   creado timestamptz not null default now()
@@ -313,3 +314,6 @@ alter table public.conteos_caja enable row level security;
 drop policy if exists "solo el dueño" on public.conteos_caja;
 create policy "solo el dueño" on public.conteos_caja for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Corrección de gramos de un rollo (también en supabase/cambios/2026-10-26-gramos-filamento.sql).
+alter table public.compras add column if not exists gramos_ajuste numeric(10, 2) not null default 0;
