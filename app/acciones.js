@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { costoPorGramo } from '@/lib/calculos';
-import { leerNumero } from '@/lib/formato';
+import { leerNumero, hoy } from '@/lib/formato';
+import { cargar } from '@/lib/datos';
 import { normalizar } from '@/lib/nombres';
 import { limpiarToken, venceToken, pedirTareas, desdeTarea, gramosPorFilamento, fallo } from '@/lib/bambu';
 
@@ -35,7 +36,8 @@ function explicar(error) {
   console.error(error);
   const m = String(error?.message ?? '');
   if (/fetch|network|timeout|ECONN|ENOTFOUND/i.test(m)) return 'no se pudo conectar con la base de datos; revisá internet';
-  if (/does not exist|schema cache|could not find the table/i.test(m)) return 'falta correr un SQL nuevo en Supabase (mirá supabase/cambios)';
+  // Una tabla, columna o valor que agregó un cambio cuyo SQL todavía no se corrió.
+  if (/does not exist|schema cache|could not find the table|forma_pago_check|decision_check/i.test(m)) return 'falta correr un SQL nuevo en Supabase (mirá supabase/cambios)';
   if (/jwt|auth|session|permission|row-level security/i.test(m)) return 'se cerró tu sesión; volvé a entrar';
   if (/violates|constraint|invalid input/i.test(m)) return 'la base de datos rechazó algún dato';
   return 'la base de datos no respondió bien';
@@ -712,6 +714,116 @@ export async function moverCapital(fd) {
   });
 }
 
+// Punto de partida
+
+// Contar la caja: lo que hay de verdad contra lo que calcula la app. La
+// diferencia queda como un retiro tuyo (plata del emprendimiento que usaste)
+// o, si sobra, como un aporte. Desde ahí la caja de la app es la real.
+export async function contarCaja(fd) {
+  return intentar(async () => {
+    const contado = numero(fd, 'contado');
+    if (contado == null || contado < 0) throw new Error('Poné cuánta plata del emprendimiento tenés hoy.');
+    const d = await cargar();
+    const calculado = Math.round(d.balance.caja * 100) / 100;
+    const diferencia = Math.round((contado - calculado) * 100) / 100;
+    const fecha = hoy();
+    const db = await conSesion();
+    let capital = null;
+    if (Math.abs(diferencia) >= 1) {
+      const { data, error } = await db
+        .from('capital')
+        .insert({ fecha, tipo: diferencia < 0 ? 'retiro' : 'aporte', monto: Math.abs(diferencia), nota: 'Diferencia al contar la caja' })
+        .select('id')
+        .single();
+      revisar({ error });
+      capital = data.id;
+    }
+    const { data: conteo, error } = await db.from('conteos_caja').insert({ fecha, contado, calculado, capital_id: capital }).select('id').single();
+    if (error) {
+      if (capital) await db.from('capital').delete().eq('id', capital);
+      revisar({ error });
+    }
+    // El primer conteo es el punto de partida; después, solo si lo elegís.
+    if (!d.ajustes.puntoPartida || fd.get('punto_partida')) {
+      revisar(await db.from('ajustes').upsert({ punto_partida: fecha }, { onConflict: 'user_id' }));
+    }
+    listo();
+    return { conteo: conteo.id, diferencia, puntoAntes: d.ajustes.puntoPartida };
+  });
+}
+
+// Borra un conteo y el retiro o aporte que había generado. `puntoAntes` es el
+// punto de partida que había antes de ese conteo.
+export async function deshacerConteo(conteoId, puntoAntes) {
+  return intentar(async () => {
+    const db = await conSesion();
+    const { data: conteo, error } = await db.from('conteos_caja').select('capital_id').eq('id', conteoId).single();
+    revisar({ error });
+    revisar(await db.from('conteos_caja').delete().eq('id', conteoId));
+    if (conteo.capital_id) revisar(await db.from('capital').delete().eq('id', conteo.capital_id));
+    revisar(await db.from('ajustes').upsert({ punto_partida: puntoAntes ?? null }, { onConflict: 'user_id' }));
+    listo();
+  });
+}
+
+// El filamento que tenés hoy, por rollo y a precio de hoy. Entra como "ya lo
+// tenía": no sale de la caja ni de tu bolsillo. Si lo pedís, los rollos que
+// estaban cargados de antes quedan terminados (este inventario los reemplaza).
+export async function cargarInventario(fd) {
+  return intentar(async () => {
+    const columna = (k) => fd.getAll(k).map((v) => v.toString().trim());
+    const materiales = columna('material');
+    const colores = columna('color');
+    const rollos = columna('rollos').map((v) => aNumero(v) ?? 0);
+    const gramos = columna('gramos').map((v) => aNumero(v) ?? 1000);
+    const precios = columna('precio').map((v) => aNumero(v) ?? 0);
+    const fecha = hoy();
+    const filas = materiales
+      .map((material, i) => ({
+        fecha,
+        descripcion: `Inventario: ${[material, colores[i]].filter(Boolean).join(' ') || 'filamento'}`,
+        categoria: 'filamento',
+        forma_pago: 'inicial',
+        material: material || null,
+        color: colores[i] || null,
+        cantidad: rollos[i],
+        gramos_por_unidad: Math.round(gramos[i] || 1000),
+        total: Math.round(rollos[i] * precios[i] * 100) / 100,
+        notas: 'Lo que tenía al empezar a contar',
+      }))
+      .filter((f) => f.cantidad > 0);
+    if (!filas.length) throw new Error('Cargá al menos un rollo con su cantidad.');
+    if (filas.some((f) => !f.total)) throw new Error('Poné el precio de hoy de cada rollo: es lo que va a costar reponerlo.');
+    const db = await conSesion();
+    let agotados = [];
+    if (fd.get('agotar')) {
+      const { data, error } = await db.from('compras').select('id').eq('categoria', 'filamento').eq('agotado', false);
+      revisar({ error });
+      agotados = data.map((c) => c.id);
+    }
+    const { data: nuevas, error } = await db.from('compras').insert(filas).select('id');
+    revisar({ error });
+    if (agotados.length) {
+      const r = await db.from('compras').update({ agotado: true }).in('id', agotados);
+      if (r.error) {
+        await db.from('compras').delete().in('id', nuevas.map((c) => c.id));
+        revisar(r);
+      }
+    }
+    listo();
+    return { nuevas: nuevas.map((c) => c.id), agotados };
+  });
+}
+
+export async function deshacerInventario(nuevas, agotados) {
+  return intentar(async () => {
+    const db = await conSesion();
+    revisar(await db.from('compras').delete().in('id', nuevas));
+    if (agotados.length) revisar(await db.from('compras').update({ agotado: false }).in('id', agotados));
+    listo();
+  });
+}
+
 // Ajustes
 
 export async function guardarAjustes(fd) {
@@ -727,7 +839,6 @@ export async function guardarAjustes(fd) {
         costo_gramo: numero(fd, 'costo_gramo') ?? 20,
         multiplicador: numero(fd, 'multiplicador') ?? 5,
         multiplicador_mayor: numero(fd, 'multiplicador_mayor') ?? 4,
-        reinversion_pct: numero(fd, 'reinversion_pct') ?? 34,
       })
     );
     listo();

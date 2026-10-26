@@ -11,7 +11,7 @@ import { asignarMaquina, borrar, editarCompra } from '@/app/acciones';
 export const dynamic = 'force-dynamic';
 
 const CATEGORIA = { maquina: 'Máquina', accesorio: 'Accesorio', filamento: 'Filamento', insumo: 'Insumo', repuesto: 'Repuesto', otro: 'Otro' };
-const FORMA = { bolsillo: 'Tu bolsillo', caja: 'Caja', cuotas: 'Cuotas' };
+const FORMA = { bolsillo: 'Tu bolsillo', caja: 'Caja', cuotas: 'Cuotas', inicial: 'Ya lo tenía' };
 
 function Detalle({ c, maquinas, cerrar }) {
   return (
@@ -34,6 +34,7 @@ function Detalle({ c, maquinas, cerrar }) {
             <option value="bolsillo">Mi bolsillo</option>
             <option value="caja">La caja</option>
             <option value="cuotas">Cuotas</option>
+            <option value="inicial">Ya lo tenía (no fue un gasto)</option>
           </select>
         </Campo>
         <Campo nombre="Cuotas" ayuda="Solo si es en cuotas.">

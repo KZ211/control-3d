@@ -3,6 +3,7 @@ import { plata, plataFina, fecha, gramos } from '@/lib/formato';
 import { Pagina, Vacio, Dato } from '@/components/ui';
 import { Accion } from '@/components/formulario';
 import { marcarAgotado } from '@/app/acciones';
+import { InventarioFilamento } from '@/components/punto-de-partida';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,10 +18,13 @@ export default async function Filamento() {
     <Pagina className="lg:flex lg:h-full lg:flex-col">
       <div className="grid shrink-0 grid-cols-2 sm:grid-cols-3 gap-3">
         <Dato className="col-span-2 sm:col-span-1" nombre="Te quedan" valor={gramos(quedan)} nota={`${activos.length} rollos con stock`} />
-        <Dato nombre="Valen" valor={plata(d.balance.valorStock)} nota="lo que te costaron" />
+        <Dato nombre="Valen" valor={plata(d.balance.valorStock)} nota="lo que costaron (el inventario, a precio de hoy)" />
         <Dato nombre="Precio por gramo" valor={quedan ? plataFina(d.balance.valorStock / quedan) : '—'} nota="promedio del stock" />
       </div>
 
+      <div className="shrink-0">
+        <InventarioFilamento rollosViejos={activos.length} />
+      </div>
       {lotes.length === 0 ? (
         <Vacio>Cargá tus rollos en Compras → Nueva para ver cuánto te queda.</Vacio>
       ) : (
