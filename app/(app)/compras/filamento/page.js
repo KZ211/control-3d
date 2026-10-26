@@ -33,7 +33,7 @@ export default async function Filamento() {
           {lotes.map((c) => {
             const total = c.lote.gramos || 1;
             const resto = Math.max(0, c.lote.gramos - c.lote.usados);
-            const parte = c.agotado ? 0 : resto / total;
+            const parte = c.agotado ? 0 : Math.min(1, resto / total);
             return (
               <li key={c.id} className={`tarjeta p-4 ${c.agotado ? 'opacity-60' : ''}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -76,7 +76,9 @@ export default async function Filamento() {
       {sueltos > 0 && (
         <p className="shrink-0 rounded-box border border-acento/40 bg-acento/10 p-3 text-xs">
           {gramos(sueltos)} impresos no dicen de qué rollo salieron ({gramos(d.gramosSueltos.ventas)} de ventas sin impresiones, como las de la planilla, y{' '}
-          {gramos(d.gramosSueltos.impresiones)} de impresiones sin lote). Se descuentan de los rollos más viejos primero.
+          {gramos(d.gramosSueltos.impresiones)} de impresiones sin lote). Se descuentan de los rollos más viejos que ya tenías ese día.
+          {d.gramosSueltos.antesDelInventario > 0 &&
+            ` ${gramos(d.gramosSueltos.antesDelInventario)} son de antes del inventario del ${fecha(d.gramosSueltos.inventario)}: ya están contados en él, no tocan tus rollos de hoy.`}
           {d.gramosSueltos.sinRollo > 0 && ` ${gramos(d.gramosSueltos.sinRollo)} no entran en ningún rollo: falta cargar alguna compra de filamento.`} Si al contar no
           coincide, pesá el rollo y usá “Corregir gramos”, o “Se terminó”.
         </p>
