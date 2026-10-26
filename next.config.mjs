@@ -9,6 +9,7 @@ const nextConfig = {
       ['/clientes', '/ventas/clientes'],
       ['/caja', '/plata/caja'],
       ['/tu-plata', '/plata'],
+      ['/plata/reinversion', '/plata/reparto'],
     ].map(([source, destination]) => ({ source, destination, permanent: false }));
   },
 };

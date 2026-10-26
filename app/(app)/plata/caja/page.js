@@ -1,6 +1,7 @@
 import { cargar } from '@/lib/datos';
 import { plata, fecha } from '@/lib/formato';
 import { Pagina, Vacio, Explica, Dato, Tabla } from '@/components/ui';
+import { ContarCaja } from '@/components/punto-de-partida';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,7 +57,15 @@ export default async function Caja() {
           </Tabla>
         )}
         <aside className="tarjeta p-4 lg:overflow-y-auto">
-          <h2 className="rotulo">¿Qué es hacer caja?</h2>
+          <h2 className="rotulo mb-3">Contar la caja</h2>
+          <ContarCaja calculado={d.balance.caja} hayPunto={Boolean(d.ajustes.puntoPartida)} />
+          {d.conteos[0] && (
+            <p className="mt-3 text-xs text-tenue">
+              Último conteo: {plata(d.conteos[0].contado)} el {fecha(d.conteos[0].fecha)}
+              {d.ajustes.puntoPartida && <> · repartís las ventas desde el {fecha(d.ajustes.puntoPartida)}</>}.
+            </p>
+          )}
+          <h2 className="rotulo mt-6">¿Qué es hacer caja?</h2>
           <div className="mt-2 space-y-2 text-sm leading-relaxed text-tenue">
             <p>
               La <strong className="text-tinta">caja</strong> es la plata real del emprendimiento: lo que cobraste menos lo que pagaste con esa plata. “Hacer caja” es

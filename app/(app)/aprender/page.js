@@ -139,16 +139,30 @@ export default async function Aprender({ searchParams }) {
         </p>
       </Tema>
 
-      <Tema actual={tema} id="reinversion" titulo="Reinvertir">
+      <Tema actual={tema} id="reinversion" titulo="Reinvertir: qué dejar en la caja">
         <p>
-          <strong>Reinvertir</strong> es usar parte de lo que ganás para que el emprendimiento siga andando o crezca: filamento, repuestos, otra
-          máquina. Apartar un porcentaje fijo de cada venta (vos usás {pct(d.reinversion.pct / 100)}) evita gastarse todo y quedarse sin material.
+          <strong>Reinvertir</strong> es usar parte de lo que vendés para que el emprendimiento siga andando: volver a comprar el filamento que usaste, pagar las
+          cuotas y guardar para arreglos o una máquina nueva. Si eso queda en la caja, lo que sobra lo podés sacar sin achicar el negocio.
         </p>
         <Ejemplo>
-          De lo cobrado, {pct(d.reinversion.pct / 100)} son <strong>{plata(d.reinversion.apartar)}</strong>. Con la caja ya compraste{' '}
-          {plata(d.reinversion.reinvertido)}, así que te quedan <strong>{plata(d.reinversion.disponible)}</strong> para reinvertir.{' '}
-          <Link href="/plata/reinversion" className="underline">
-            Ver detalle
+          {d.plan.porcentajes ? (
+            <>
+              Con lo que vendiste en los últimos tres meses, de cada {plata(1000)}: <strong>{plata(1000 * d.plan.porcentajes.reponer)}</strong> reponen el filamento
+              (a {plata(d.plan.precioGramo * 1000)} el kilo), <strong>{plata(1000 * d.plan.porcentajes.desgaste)}</strong> van al desgaste de las máquinas y{' '}
+              <strong>{plata(1000 * d.plan.porcentajes.cuotas)}</strong> a las cuotas.{' '}
+              {d.plan.porcentajes.libre > 0 ? (
+                <>
+                  Te quedan <strong>{plata(1000 * d.plan.porcentajes.libre)}</strong> para sacar o ahorrar.
+                </>
+              ) : (
+                <>Hoy no sobra nada: lo que vendés no alcanza para cubrir todo.</>
+              )}
+            </>
+          ) : (
+            <>Cuando tengas ventas de los últimos tres meses, acá vas a ver qué parte de cada venta va a cada cosa.</>
+          )}{' '}
+          <Link href="/plata/reparto" className="underline">
+            Ver el reparto
           </Link>
           .
         </Ejemplo>

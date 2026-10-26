@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function Ajustes() {
   const [d, b] = await Promise.all([cargar(), cargarBambu()]);
-  const { costoGramo, multiplicador, multiplicadorMayor, reinversionPct, precioKwh } = d.ajustes;
+  const { costoGramo, multiplicador, multiplicadorMayor, precioKwh } = d.ajustes;
   // Precio por gramo promedio del filamento que queda, para comparar.
   const gramosStock = d.stock.reduce((s, l) => s + l.quedan, 0);
   const promedio = gramosStock ? d.stock.reduce((s, l) => s + l.valor, 0) / gramosStock : 0;
@@ -30,9 +30,6 @@ export default async function Ajustes() {
           </Campo>
           <Campo nombre="Multiplicador por mayor" ayuda="Para pedidos grandes o reventa: por ejemplo ×4 o ×4,5. Se muestra al lado del precio sugerido.">
             <input name="multiplicador_mayor" inputMode="decimal" defaultValue={multiplicadorMayor} className="entrada" />
-          </Campo>
-          <Campo nombre="Parte de cada venta para reinvertir (%)" ayuda="Lo que apartás para volver a comprar filamento. En la planilla es 34% (el neto es el 66%).">
-            <input name="reinversion_pct" inputMode="decimal" defaultValue={reinversionPct} className="entrada" />
           </Campo>
           <Campo nombre="Precio del kWh" ayuda="En tu factura de luz: el total a pagar dividido los kWh consumidos da un buen promedio.">
             <input name="precio_kwh" inputMode="decimal" defaultValue={precioKwh} className="entrada" />
