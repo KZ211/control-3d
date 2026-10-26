@@ -716,9 +716,10 @@ export async function moverCapital(fd) {
 
 // Punto de partida
 
-// Contar la caja: lo que hay de verdad contra lo que calcula la app. La
-// diferencia queda como un retiro tuyo (plata del emprendimiento que usaste)
-// o, si sobra, como un aporte. Desde ahí la caja de la app es la real.
+// Contar la caja: lo que hay de verdad contra lo que calcula la app. Lo que
+// falta queda como un retiro tuyo (plata del emprendimiento que usaste) o como
+// gastado (se fue en algo que no se registró); si sobra, como un aporte. Desde
+// ahí la caja de la app es la real.
 export async function contarCaja(fd) {
   return intentar(async () => {
     const contado = numero(fd, 'contado');
@@ -727,12 +728,14 @@ export async function contarCaja(fd) {
     const calculado = Math.round(d.balance.caja * 100) / 100;
     const diferencia = Math.round((contado - calculado) * 100) / 100;
     const fecha = hoy();
+    // Lo que falta: o lo usaste para vos (retiro) o se gastó en algo (gasto).
+    const faltante = texto(fd, 'faltante') === 'gasto' ? 'gasto' : 'retiro';
     const db = await conSesion();
     let capital = null;
     if (Math.abs(diferencia) >= 1) {
       const { data, error } = await db
         .from('capital')
-        .insert({ fecha, tipo: diferencia < 0 ? 'retiro' : 'aporte', monto: Math.abs(diferencia), nota: 'Diferencia al contar la caja' })
+        .insert({ fecha, tipo: diferencia > 0 ? 'aporte' : faltante, monto: Math.abs(diferencia), nota: 'Diferencia al contar la caja' })
         .select('id')
         .single();
       revisar({ error });
@@ -748,7 +751,7 @@ export async function contarCaja(fd) {
       revisar(await db.from('ajustes').upsert({ punto_partida: fecha }, { onConflict: 'user_id' }));
     }
     listo();
-    return { conteo: conteo.id, diferencia, puntoAntes: d.ajustes.puntoPartida };
+    return { conteo: conteo.id, diferencia, faltante, puntoAntes: d.ajustes.puntoPartida };
   });
 }
 

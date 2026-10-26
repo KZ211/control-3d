@@ -192,7 +192,8 @@ create table public.capital (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   fecha date not null default current_date,
-  tipo text not null check (tipo in ('aporte', 'retiro')),
+  -- gasto: salió de la caja pero no fue a tu bolsillo (se gastó o se perdió).
+  tipo text not null check (tipo in ('aporte', 'retiro', 'gasto')),
   monto numeric(12, 2) not null check (monto > 0),
   nota text,
   creado timestamptz not null default now()

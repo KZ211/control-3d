@@ -14,6 +14,7 @@ const aNumero = (v) => leerNumero(v) || 0;
 // que calcula la app queda como un retiro tuyo (o un aporte, si sobra).
 export function ContarCaja({ calculado, hayPunto }) {
   const [contado, setContado] = useState('');
+  const [faltante, setFaltante] = useState('retiro');
   const escrito = contado.trim() !== '';
   const diferencia = aNumero(contado) - calculado;
   return (
@@ -25,7 +26,7 @@ export function ContarCaja({ calculado, hayPunto }) {
           texto:
             Math.abs(r.diferencia) < 1
               ? 'Caja contada: coincide con la app'
-              : `Caja contada: ${r.diferencia < 0 ? 'retiro' : 'aporte'} de ${plata(Math.abs(r.diferencia))}`,
+              : `Caja contada: ${r.diferencia > 0 ? 'aporte' : r.faltante === 'gasto' ? 'gastado' : 'retiro'} de ${plata(Math.abs(r.diferencia))}`,
           deshacer: () => deshacerConteo(r.conteo, r.puntoAntes),
         });
       }}
@@ -44,7 +45,7 @@ export function ContarCaja({ calculado, hayPunto }) {
           ) : diferencia < 0 ? (
             <>
               {' '}
-              Faltan <strong className="text-pierde">{plata(-diferencia)}</strong>: se registran como un retiro tuyo (plata del emprendimiento que usaste).
+              Faltan <strong className="text-pierde">{plata(-diferencia)}</strong>.
             </>
           ) : (
             <>
@@ -53,6 +54,33 @@ export function ContarCaja({ calculado, hayPunto }) {
             </>
           ))}
       </p>
+      {escrito && diferencia <= -1 && (
+        <fieldset>
+          <legend className="mb-1 text-sm font-medium">¿Qué pasó con lo que falta?</legend>
+          <input type="hidden" name="faltante" value={faltante} />
+          <div className="join w-full">
+            {[
+              ['retiro', 'Lo usé para mí'],
+              ['gasto', 'Se gastó en cosas'],
+            ].map(([v, texto]) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={faltante === v}
+                onClick={() => setFaltante(v)}
+                className={`btn join-item btn-sm min-h-11 flex-1 border ${faltante === v ? 'border-tinta bg-tinta text-papel hover:bg-tinta/90' : 'btn-ghost border-linea bg-hoja font-normal'}`}
+              >
+                {texto}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-tenue">
+            {faltante === 'retiro'
+              ? 'Queda como un retiro en Tu bolsillo: plata del emprendimiento que volvió a vos.'
+              : 'Queda como gastado: salió de la caja, pero no está ni en la caja ni en tu bolsillo.'}
+          </p>
+        </fieldset>
+      )}
       {hayPunto ? (
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
           <input type="checkbox" name="punto_partida" className="checkbox checkbox-sm" />
