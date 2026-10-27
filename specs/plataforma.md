@@ -1,8 +1,9 @@
 # Plataforma
 
-### PLAT-1 · Un solo usuario
-La app tiene un dueño con login. El registro de usuarios nuevos está cerrado
-en Supabase. Todas las pantallas están protegidas (middleware.js).
+### PLAT-1 · Usuarios con login, sin registro
+Cada usuario entra con su email y contraseña. El registro de usuarios nuevos
+está cerrado en Supabase: las cuentas las crea el dueño (ver usuarios.md).
+Todas las pantallas están protegidas (middleware.js).
 
 ### PLAT-2 · Seguridad por filas
 Cada tabla guarda `user_id` y tiene la política RLS "solo el dueño". Nunca se

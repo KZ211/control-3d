@@ -42,4 +42,5 @@ Código: `construir` en lib/calculos.js
 | [filamento.md](filamento.md) | Rollos, precio por gramo, gramos usados, inventario |
 | [plata.md](plata.md) | Caja, tu bolsillo, conteos, punto de partida, reinversión |
 | [resultados.md](resultados.md) | Recuperación del equipo, resultado del mes, balance |
-| [plataforma.md](plataforma.md) | Usuario, seguridad, idioma, cambios de la base |
+| [usuarios.md](usuarios.md) | Varias cuentas, aislamiento de datos, tope por usuario |
+| [plataforma.md](plataforma.md) | Login, seguridad, idioma, cambios de la base |

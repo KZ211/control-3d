@@ -35,6 +35,9 @@ async function conSesion() {
 function explicar(error) {
   console.error(error);
   const m = String(error?.message ?? '');
+  // Los dos rechazos de cuentas (specs/usuarios.md) ya vienen en palabras simples.
+  if (/límite de datos/i.test(m)) return 'llegaste al límite de datos de tu cuenta; pedile al dueño de la app que te lo amplíe';
+  if (/no es tuyo/i.test(m)) return 'eso no es tuyo: es un dato de otra cuenta';
   if (/fetch|network|timeout|ECONN|ENOTFOUND/i.test(m)) return 'no se pudo conectar con la base de datos; revisá internet';
   // Una tabla, columna o valor que agregó un cambio cuyo SQL todavía no se corrió.
   if (/does not exist|schema cache|could not find the table|forma_pago_check|decision_check/i.test(m)) return 'falta correr un SQL nuevo en Supabase (mirá supabase/cambios)';

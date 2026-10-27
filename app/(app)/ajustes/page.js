@@ -1,14 +1,14 @@
-import { cargar, cargarBambu } from '@/lib/datos';
+import { cargar, cargarBambu, cargarUso } from '@/lib/datos';
 import { ConexionBambu } from '@/components/bambu';
-import { plata, plataFina } from '@/lib/formato';
-import { Pagina, Hoja, Campo, Explica } from '@/components/ui';
+import { plata, plataFina, num, pct } from '@/lib/formato';
+import { Pagina, Hoja, Campo, Explica, Avance } from '@/components/ui';
 import { Formulario, Enviar } from '@/components/formulario';
 import { guardarAjustes } from '@/app/acciones';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Ajustes() {
-  const [d, b] = await Promise.all([cargar(), cargarBambu()]);
+  const [d, b, u] = await Promise.all([cargar(), cargarBambu(), cargarUso()]);
   const { costoGramo, multiplicador, multiplicadorMayor, precioKwh } = d.ajustes;
   // Precio por gramo promedio del filamento que queda, para comparar.
   const gramosStock = d.stock.reduce((s, l) => s + l.quedan, 0);
@@ -46,6 +46,24 @@ export default async function Ajustes() {
             {plata(75 * costoGramo * 5)}; por mayor, con ×{String(multiplicadorMayor).replace('.', ',')}, {plata(75 * costoGramo * multiplicadorMayor)} cada una. Las piezas chicas y rápidas aguantan multiplicadores más altos; las grandes, más bajos.
           </p>
         </Explica>
+      </Hoja>
+      <Hoja className="p-5">
+        <h2 className="text-lg font-bold">Tu cuenta</h2>
+        {u.falta ? (
+          <p className="mt-2 text-sm">
+            Primero corré <strong>supabase/cambios/2026-10-27-usuarios.sql</strong> en Supabase → SQL Editor.
+          </p>
+        ) : u.tope == null ? (
+          <p className="mt-2 text-sm text-tenue">Usaste {num(u.filas)} datos. Sin límite.</p>
+        ) : (
+          <div className="mt-2 grid gap-2">
+            <p className="text-sm text-tenue">
+              Usaste {num(u.filas)} de {num(u.tope)} datos ({pct(u.tope ? u.filas / u.tope : 1)}). Cada venta, pieza, cobro, compra o impresión es un dato;
+              si borrás algo, liberás lugar.
+            </p>
+            <Avance valor={u.tope ? u.filas / u.tope : 1} etiqueta={`Usaste ${num(u.filas)} de ${num(u.tope)} datos`} tono={u.filas >= u.tope * 0.9 ? 'acento' : 'gana'} />
+          </div>
+        )}
       </Hoja>
       <Hoja className="p-5">
         <h2 className="text-lg font-bold">Bambu Lab</h2>
