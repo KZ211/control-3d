@@ -38,3 +38,6 @@ Thumbs.db
 # Pruebas con el navegador
 /.playwright-mcp/
 /coverage/
+
+# Grafo de graphify: se regenera con /graphify
+/graphify-out/
