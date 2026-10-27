@@ -12,8 +12,9 @@ Next.js 14 (App Router), JavaScript, Tailwind CSS y Supabase (base de datos y lo
 4. **Datos de la planilla (opcional).** Pegá y ejecutá `supabase/datos-iniciales.sql`. Carga las tres hojas de "Costos empresa 3D": máquinas y compras (Deuda), las 75 filas de Ventas agrupadas en pedidos por cliente, y la hoja Impresion propia. Al principio del archivo están anotados los supuestos (fechas, cobros pendientes, encargos).
 5. **Claves.** Copiá `.env.example` como `.env.local` y completá la URL y la clave publicable (Project Settings > API Keys). Nunca uses la clave secreta / service_role.
 6. **Cambios de la base.** Si tu base es de antes, corré en el SQL Editor los archivos de `supabase/cambios/` que todavía no corriste (cada uno dice qué hace).
-7. **Bambu Lab (opcional).** En Ajustes → Bambu Lab pegás el token de tu cuenta y el historial de impresiones aparece en Taller → Por revisar. Usa la API no oficial de Bambu Handy: puede dejar de andar si Bambu la cambia.
-8. **Correr la app:**
+7. **Más cuentas (opcional).** Cada persona que agregues en Authentication > Users > Add user (con "Auto Confirm User") usa la app entera con sus propios datos, sin ver los de nadie más, y puede guardar hasta 10.000 filas. Para cambiarle el tope: `insert into public.limites (user_id, max_filas) values ('<id>', 20000) on conflict (user_id) do update set max_filas = excluded.max_filas;` (vacío = sin tope). Las reglas están en `specs/usuarios.md`.
+8. **Bambu Lab (opcional).** En Ajustes → Bambu Lab pegás el token de tu cuenta y el historial de impresiones aparece en Taller → Por revisar. Usa la API no oficial de Bambu Handy: puede dejar de andar si Bambu la cambia.
+9. **Correr la app:**
 
    ```bash
    npm install
@@ -40,7 +41,7 @@ middleware.js       renueva la sesión y protege todas las pantallas
 
 Una venta es un pedido de un cliente con uno o varios renglones (`venta_items`), cada uno opcionalmente de un producto del catálogo. Las impresiones apuntan al renglón que fabrican; si no hay impresiones, el costo del renglón se estima con sus gramos y el precio por gramo, como en la planilla. El esquema completo con sus relaciones está dibujado al principio de `supabase/schema.sql`.
 
-Cada tabla guarda el `user_id` y tiene seguridad por filas (RLS): cada usuario solo ve y modifica lo suyo.
+Cada tabla guarda el `user_id` y tiene seguridad por filas (RLS): cada usuario solo ve y modifica lo suyo. Además, la base rechaza filas que apunten a datos de otra cuenta y lleva la cuenta de cuántas filas usa cada uno (`uso` y `limites`).
 
 ## Publicarla
 

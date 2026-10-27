@@ -1,6 +1,7 @@
 -- Datos de la planilla "Costos empresa 3D" (hojas Deuda, Ventas e Impresion propia).
 -- Correlo una sola vez, después de schema.sql y de crear tu usuario
--- (Authentication > Users > Add user). Se cargan a tu usuario.
+-- (Authentication > Users > Add user). Se cargan en la cuenta del email que
+-- escribas abajo, en `correo`.
 --
 -- Lo que la planilla no dice y quedó supuesto (corregilo en la app):
 -- * Fechas: las compras quedan el 23/05/2026 (la fecha de la hoja Deuda) y las
@@ -18,7 +19,9 @@
 
 do $$
 declare
-  u uuid := (select id from auth.users limit 1);
+  -- La cuenta donde se carga la planilla: escribí tu email.
+  correo text := 'tu-email@ejemplo.com';
+  u uuid := (select id from auth.users where lower(email) = lower(correo));
   dia_compras date := '2026-05-23';
   dia_ventas date := '2026-10-21';
   -- Para que las ventas queden en el orden de la planilla.
@@ -30,8 +33,11 @@ declare
   i uuid;
 begin
   if u is null then
-    raise exception 'Primero creá tu usuario en Authentication > Users > Add user';
+    raise exception 'No hay ninguna cuenta con el email %. Escribilo arriba o creala en Authentication > Users > Add user', correo;
   end if;
+
+  -- La cuenta del dueño no tiene tope de datos.
+  insert into public.limites (user_id, max_filas) values (u, null) on conflict (user_id) do update set max_filas = null;
 
   insert into public.ajustes (user_id, costo_gramo, multiplicador, multiplicador_mayor, reinversion_pct) values (u, 20, 5, 4, 34) on conflict do nothing;
 

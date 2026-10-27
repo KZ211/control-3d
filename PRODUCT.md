@@ -8,7 +8,7 @@ web
 
 ## Users
 
-Una sola persona: el dueño de un emprendimiento chico de impresión 3D en Argentina, que imprime, vende y lleva las cuentas solo. No es contador; aprende los conceptos (bruto, neto, caja, balance, recupero) mientras usa la app. Carga datos a veces desde el celular y a veces desde la computadora, según el día: al momento de una venta o juntando varias para cargarlas después.
+Una sola persona: el dueño de un emprendimiento chico de impresión 3D en Argentina, que imprime, vende y lleva las cuentas solo. No es contador; aprende los conceptos (bruto, neto, caja, balance, recupero) mientras usa la app. El dueño también puede crear cuentas a mano para otras personas con su propio emprendimiento: cada una usa la app entera con sus datos, aislados de los demás. Carga datos a veces desde el celular y a veces desde la computadora, según el día: al momento de una venta o juntando varias para cargarlas después.
 
 ## Product Purpose
 
@@ -29,7 +29,7 @@ Una herramienta personal hecha a la medida de las reglas de su propia planilla, 
 
 ## Capabilities and Constraints
 
-- Next.js 14 (App Router) con Supabase; un solo usuario con login, todas las tablas protegidas por RLS "solo el dueño". Nunca usar la clave secret/service_role.
+- Next.js 14 (App Router) con Supabase; usuarios con login creados a mano (sin registro), todas las tablas protegidas por RLS "solo el dueño" y con tope de filas por cuenta. Nunca usar la clave secret/service_role.
 - Secciones: Panel, Ventas, Taller (impresiones, productos, máquinas), Compras (filamento, cuotas), Plata (recuperación, caja, bolsillo, reinversión), Aprender y Ajustes.
 - La carga rápida de ventas está disponible en toda la app (botón "+ Venta" y tecla N) y es la función prioritaria.
 - Moneda: pesos argentinos, formato es-AR. Idioma de la interfaz: español rioplatense, con voseo.
